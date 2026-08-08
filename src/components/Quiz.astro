@@ -1,0 +1,68 @@
+---
+/** Wraps QuizQuestion children; shows a running score once all are answered. */
+---
+
+<lesson-quiz>
+  <div class="quiz-head">
+    <p class="meta">Check what stuck</p>
+  </div>
+  <slot />
+  <p class="score" role="status"></p>
+</lesson-quiz>
+
+<script>
+  class LessonQuiz extends HTMLElement {
+    #answered = 0;
+    #correct = 0;
+
+    connectedCallback() {
+      const total = this.querySelectorAll('quiz-question').length;
+      this.addEventListener('quiz-answered', (e) => {
+        this.#answered += 1;
+        if ((e as CustomEvent<{ correct: boolean }>).detail.correct)
+          this.#correct += 1;
+        if (this.#answered === total) {
+          const score = this.querySelector<HTMLElement>('.score');
+          if (score)
+            score.textContent = `You got ${this.#correct} of ${total}. ${
+              this.#correct === total
+                ? 'All of it stuck!'
+                : 'Reread the parts that surprised you — that is the good stuff.'
+            }`;
+        }
+      });
+    }
+  }
+  customElements.define('lesson-quiz', LessonQuiz);
+</script>
+
+<style>
+  lesson-quiz {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: var(--space-4);
+    margin-top: var(--space-5);
+  }
+
+  .quiz-head {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+
+  lesson-quiz :global(quiz-question + quiz-question) {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px dashed var(--line);
+  }
+
+  .score {
+    font-weight: 650;
+    margin-top: var(--space-3);
+  }
+
+  .score:empty {
+    display: none;
+  }
+</style>

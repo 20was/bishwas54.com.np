@@ -1,0 +1,49 @@
+---
+/** Numbered walkthrough list. Use with an <ol> in the slot:
+ *  <Steps><ol><li>…</li></ol></Steps> */
+---
+
+<div class="steps">
+  <slot />
+</div>
+
+<style>
+  .steps :global(ol) {
+    list-style: none;
+    counter-reset: step;
+    padding-left: 0;
+    margin: 0;
+  }
+
+  .steps :global(ol > li) {
+    counter-increment: step;
+    position: relative;
+    padding-left: 3rem;
+    padding-bottom: var(--space-4);
+    border-left: 1px solid var(--line);
+    margin-left: 1.05rem;
+  }
+
+  .steps :global(ol > li:last-child) {
+    border-left-color: transparent;
+    padding-bottom: 0;
+  }
+
+  .steps :global(ol > li)::before {
+    content: counter(step);
+    position: absolute;
+    left: -1.1rem;
+    top: 0;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 1px solid var(--line-strong);
+    color: var(--accent);
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+  }
+</style>

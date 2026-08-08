@@ -1,0 +1,117 @@
+---
+title: 'What is Git, actually?'
+description: 'Git explained from zero — what it is, why everyone uses it, and your first three commands, with no jargon left unexplained.'
+datePublished: 2026-08-08
+tags: ['git', 'basics', 'tools']
+level: beginner
+---
+
+import Callout from '../../components/Callout.astro';
+import Quiz from '../../components/Quiz.astro';
+import QuizQuestion from '../../components/QuizQuestion.astro';
+
+## The problem Git solves
+
+Imagine writing an essay and saving it as `essay.doc`, then `essay-final.doc`, then `essay-final-REAL.doc`, then `essay-final-REAL-v2.doc`. Now imagine three friends editing those files at the same time and emailing copies to each other. Chaos.
+
+Programmers had exactly this problem with code. Git is the tool that fixes it.
+
+**Git is a save-history manager for a folder.** It watches a folder on your computer and, whenever you tell it to, takes a snapshot of every file in it. You can go back to any snapshot, compare snapshots, and — this is the magic part — let many people work on the same folder and merge their changes together.
+
+<Callout type="note">
+  Git and GitHub are not the same thing. Git is the tool on your computer.
+  GitHub is a website where people store copies of their Git folders to share
+  them. You can use Git without GitHub.
+</Callout>
+
+## Three words you need
+
+- **Repository (repo):** a folder that Git is watching. Nothing fancy — your normal folder, plus a hidden `.git` folder where Git keeps the history.
+- **Commit:** one saved snapshot, with a short message describing what changed. Commits are the "save points" you can return to.
+- **Stage:** the waiting room. Before you commit, you pick which changes go into the snapshot. Staging is putting them in the room.
+
+## Your first repository
+
+You need Git installed — check with `git --version` in a terminal. Then:
+
+### Step 1 — create a folder and turn it into a repository
+
+```sh
+mkdir my-first-repo
+cd my-first-repo
+git init
+```
+
+Git replies `Initialized empty Git repository`. Your folder is now watched.
+
+### Step 2 — create a file and put it in the staging room
+
+```sh
+echo "hello git" > hello.txt
+git add hello.txt
+```
+
+Nothing is saved yet — `add` only stages.
+
+### Step 3 — take the snapshot
+
+```sh
+git commit -m "Add hello.txt"
+```
+
+The `-m` message is a note to your future self. Write what changed and why.
+
+Run `git log` and you'll see your commit: an author, a date, your message, and a long ID. That's your first save point.
+
+## Why does the two-step add-then-commit dance exist?
+
+It feels bureaucratic at first. The point is choice: you might change five files but want two snapshots — one for the bug fix, one for the new feature. Staging lets you pick which changes belong together. Beginners can just stage everything with `git add .` and that's fine.
+
+<Callout type="tip">
+  Commit small and often. A commit that changes one thing with a clear message
+  is a gift to future-you. A commit called "stuff" that changes 40 files is a
+  puzzle.
+</Callout>
+
+## What you can do now
+
+With just `init`, `add`, and `commit` you already have superpowers: a full history of your work, and the ability to answer "what did I change yesterday?" precisely. Branches, merging, and GitHub build on these three ideas — they come in the next lesson.
+
+<Quiz>
+  <QuizQuestion
+    question="What is a commit?"
+    options={[
+      'A copy of your folder uploaded to GitHub',
+      'A saved snapshot of your files with a message',
+      'A special file that Git watches',
+    ]}
+    answer={1}
+  >
+    A commit is one snapshot of your repository at a moment in time, plus a
+    message describing it. It lives on your computer — no internet involved.
+  </QuizQuestion>
+  <QuizQuestion
+    question="What does `git add` do?"
+    options={[
+      'Saves a snapshot immediately',
+      'Creates a new repository',
+      'Stages changes so the next commit includes them',
+    ]}
+    answer={2}
+  >
+    `git add` only puts changes in the waiting room (the stage). Nothing is
+    saved until you run `git commit`.
+  </QuizQuestion>
+  <QuizQuestion
+    question="Git and GitHub are…"
+    options={[
+      'Two names for the same thing',
+      'A tool on your computer, and a website for sharing repositories',
+      'Both websites',
+    ]}
+    answer={1}
+  >
+    Git works entirely on your machine. GitHub is one popular place to host
+    copies of Git repositories so people can collaborate.
+  </QuizQuestion>
+</Quiz>

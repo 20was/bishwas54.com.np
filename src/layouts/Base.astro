@@ -45,11 +45,6 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
         document
           .querySelector('meta[name="theme-color"]')
           ?.setAttribute('content', colors[theme]);
-        const accent = localStorage.getItem('accent');
-        if (accent === 'blue' || accent === 'rust')
-          document.documentElement.dataset.accent = accent;
-        if (localStorage.getItem('font') === 'source')
-          document.documentElement.dataset.font = 'source';
       })();
     </script>
   </head>

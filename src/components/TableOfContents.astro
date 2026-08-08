@@ -1,0 +1,124 @@
+---
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const headings = Astro.props.headings.filter((h) => h.depth === 2);
+---
+
+{
+  headings.length >= 2 && (
+    <nav class="toc" aria-label="On this page">
+      <details open>
+        <summary class="meta">On this page</summary>
+        <ul>
+          {headings.map((h) => (
+            <li>
+              <a href={`#${h.slug}`}>{h.text}</a>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </nav>
+  )
+}
+
+<script>
+  // Scroll-spy: highlight the section currently in view (wide screens only —
+  // on mobile the TOC is collapsed anyway).
+  const toc = document.querySelector('.toc');
+  // Start collapsed on narrow screens (rendered open so no-JS users see it)
+  if (toc && !matchMedia('(min-width: 1100px)').matches) {
+    toc.querySelector('details')?.removeAttribute('open');
+  }
+  if (toc && matchMedia('(min-width: 1100px)').matches) {
+    const links = new Map(
+      [...toc.querySelectorAll<HTMLAnchorElement>('a')].map((a) => [
+        decodeURIComponent(a.hash.slice(1)),
+        a,
+      ]),
+    );
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const link = links.get(entry.target.id);
+          if (link && entry.isIntersecting) {
+            toc
+              .querySelectorAll('a[aria-current]')
+              .forEach((a) => a.removeAttribute('aria-current'));
+            link.setAttribute('aria-current', 'true');
+          }
+        }
+      },
+      { rootMargin: '0px 0px -70% 0px' },
+    );
+    links.forEach((_, id) => {
+      const target = document.getElementById(id);
+      if (target) observer.observe(target);
+    });
+  }
+</script>
+
+<style>
+  .toc summary {
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .toc summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .toc summary::after {
+    content: ' ▸';
+  }
+
+  .toc details[open] summary::after {
+    content: ' ▾';
+  }
+
+  .toc ul {
+    list-style: none;
+    margin: var(--space-2) 0 0;
+    padding: 0;
+  }
+
+  .toc li + li {
+    margin-top: var(--space-1);
+  }
+
+  .toc a {
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    text-decoration: none;
+    color: var(--text-soft);
+    line-height: 1.4;
+    display: inline-block;
+  }
+
+  .toc a:hover {
+    color: var(--accent);
+  }
+
+  .toc a[aria-current] {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  @media (min-width: 1100px) {
+    .toc details {
+      display: block;
+    }
+
+    /* Always open in the margin; hide the toggle affordance */
+    .toc summary {
+      pointer-events: none;
+    }
+
+    .toc summary::after {
+      content: '';
+    }
+  }
+</style>

@@ -1,0 +1,99 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.datePublished.getTime() - a.data.datePublished.getTime(),
+);
+
+const fmt = (d: Date) =>
+  d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+---
+
+<Base
+  title="Notes — Bishwas Adhikari"
+  description="Short, atomic notes — small things learned, written down before they escape."
+>
+  <div class="listing">
+    <h1>Notes</h1>
+    <p class="lede">
+      Small things I learned, written down before they escape. Shorter and
+      rougher than tutorials — that's the point.
+    </p>
+    {
+      notes.length === 0 ? (
+        <p class="empty">No notes yet. The first ones land soon.</p>
+      ) : (
+        <ul class="posts">
+          {notes.map((n) => (
+            <li>
+              <p class="meta">
+                <time
+                  datetime={n.data.datePublished.toISOString().slice(0, 10)}
+                >
+                  {fmt(n.data.datePublished)}
+                </time>
+              </p>
+              <a href={`/notes/${n.id}/`}>{n.data.title}</a>
+              <p class="description">{n.data.description}</p>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</Base>
+
+<style>
+  .listing {
+    max-width: var(--measure);
+  }
+
+  h1 {
+    font-size: var(--step-3);
+  }
+
+  .lede {
+    margin-top: var(--space-3);
+    font-size: var(--step-1);
+    color: var(--text-soft);
+    line-height: 1.5;
+  }
+
+  .empty {
+    margin-top: var(--space-5);
+    color: var(--text-soft);
+  }
+
+  .posts {
+    list-style: none;
+    margin: var(--space-5) 0 0;
+    padding: 0;
+  }
+
+  .posts li + li {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--line);
+  }
+
+  .posts a {
+    font-size: var(--step-1);
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .posts a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+
+  .description {
+    margin-top: var(--space-1);
+    color: var(--text-soft);
+  }
+</style>

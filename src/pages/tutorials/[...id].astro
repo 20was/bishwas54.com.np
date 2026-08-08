@@ -1,0 +1,101 @@
+---
+import { getCollection, render } from 'astro:content';
+import Article from '../../layouts/Article.astro';
+import TableOfContents from '../../components/TableOfContents.astro';
+import { readingMinutes } from '../../lib/reading-time';
+import { relatedPosts } from '../../lib/related';
+
+export async function getStaticPaths() {
+  const tutorials = await getCollection('tutorials', ({ data }) => !data.draft);
+  return tutorials.map((entry) => ({
+    params: { id: entry.id },
+    props: { entry, all: tutorials },
+  }));
+}
+
+const { entry, all } = Astro.props;
+const { Content, headings } = await render(entry);
+const related = relatedPosts(
+  { id: entry.id, tags: entry.data.tags },
+  all.map((t) => ({ id: t.id, tags: t.data.tags, title: t.data.title })),
+);
+const minutes = readingMinutes(entry.body ?? '');
+
+const twoYears = 1000 * 60 * 60 * 24 * 730;
+const lastTouch = entry.data.dateUpdated ?? entry.data.datePublished;
+const stale = Date.now() - lastTouch.getTime() > twoYears;
+---
+
+<Article
+  title={entry.data.title}
+  description={entry.data.description}
+  datePublished={entry.data.datePublished}
+  dateUpdated={entry.data.dateUpdated}
+  readingMinutes={minutes}
+>
+  <Fragment slot="margin">
+    <p class="meta level">{entry.data.level}</p>
+    <TableOfContents headings={headings} />
+  </Fragment>
+
+  {
+    entry.data.archived && (
+      <p class="banner meta">
+        Archived — kept for reference, no longer maintained.
+      </p>
+    )
+  }
+  {
+    !entry.data.archived && stale && (
+      <p class="banner meta">
+        Heads up: this hasn't been reviewed in over two years and may be
+        outdated.
+      </p>
+    )
+  }
+
+  <Content />
+
+  {
+    related.length > 0 && (
+      <footer class="related">
+        <h2>Keep learning</h2>
+        <ul>
+          {related.map((post) => (
+            <li>
+              <a href={`/tutorials/${post.id}/`}>{post.title}</a>
+            </li>
+          ))}
+        </ul>
+      </footer>
+    )
+  }
+</Article>
+
+<style>
+  .banner {
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .level {
+    color: var(--accent);
+  }
+
+  .related {
+    margin-top: var(--space-5);
+    border-top: 1px solid var(--line);
+    padding-top: var(--space-4);
+  }
+
+  .related h2 {
+    font-size: var(--step-1);
+  }
+
+  .related ul {
+    margin: var(--space-3) 0 0;
+    padding-left: 1.4rem;
+  }
+</style>
