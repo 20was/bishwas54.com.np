@@ -1,0 +1,45 @@
+---
+import Article from '../../layouts/Article.astro';
+---
+
+<Article
+  title="What a tutorial will look like here"
+  description="A sample lesson demonstrating the reading layout — the notebook margin, prose rhythm, code, and asides."
+  datePublished={new Date('2026-08-08')}
+  dateUpdated={new Date('2026-08-08')}
+  readingMinutes={4}
+  noindex
+>
+  <h2>Why the page looks like this</h2>
+  <p>
+    This site is built for reading. One calm column, around sixty-five
+    characters wide — the width where your eye finds the next line without
+    effort. On a wide screen, dates and metadata sit in the left margin, like
+    the edge of a paper notebook. On your phone, they fold above the title.
+  </p>
+  <p>
+    Beginner-friendly means the writing assumes nothing, not that it decorates
+    everything. Short paragraphs. One idea each. Plain words where plain words
+    work.
+  </p>
+
+  <h2>Code you can actually read</h2>
+  <p>
+    Code blocks get their own quiet surface, and later a copy button and line
+    highlighting:
+  </p>
+  <pre><code>const greet = (name) =&gt; `Namaste, $&lbrace;name&rbrace;!`;
+
+console.log(greet('learner'));
+// Namaste, learner!</code></pre>
+
+  <h2>Asides that don't interrupt</h2>
+  <blockquote>
+    Anything that would break the flow — a deeper dive, a warning, a story —
+    steps politely to the side like this, or folds away until you want it.
+  </blockquote>
+  <p>
+    At the end of every tutorial there will be a small quiz. Not for grades —
+    just three or four questions so you can feel what stuck before you move on.
+  </p>
+</Article>

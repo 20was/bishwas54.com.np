@@ -1,0 +1,193 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+
+<Base
+  title="Styleguide — pick the font and accent"
+  description="Internal design-system preview: themes, type, and accent choices."
+  noindex
+>
+  <div class="guide">
+    <h1>Styleguide</h1>
+    <p class="lede">
+      Try every combination live: theme (header, top right), body font, and
+      accent color below. Your picks persist as you browse the site. When you've
+      decided, tell Claude the winning font + accent.
+    </p>
+
+    <section aria-labelledby="pickers">
+      <h2 id="pickers">Pickers</h2>
+      <div class="picker-row">
+        <fieldset id="font-picker">
+          <legend class="meta">Body font</legend>
+          <label>
+            <input type="radio" name="font" value="literata" checked />
+            <span>Literata (proposed)</span>
+          </label>
+          <label>
+            <input type="radio" name="font" value="source" />
+            <span>Source Serif 4</span>
+          </label>
+        </fieldset>
+        <fieldset id="accent-picker">
+          <legend class="meta">Accent</legend>
+          <label>
+            <input type="radio" name="accent" value="spruce" checked />
+            <span class="swatch spruce"></span>
+            <span>Spruce (proposed)</span>
+          </label>
+          <label>
+            <input type="radio" name="accent" value="blue" />
+            <span class="swatch blue"></span>
+            <span>Ink blue</span>
+          </label>
+          <label>
+            <input type="radio" name="accent" value="rust" />
+            <span class="swatch rust"></span>
+            <span>Rust</span>
+          </label>
+        </fieldset>
+      </div>
+    </section>
+
+    <section aria-labelledby="type">
+      <h2 id="type">Type specimen</h2>
+      <p class="specimen-heading">
+        The quick brown fox jumps over the lazy dog
+      </p>
+      <p>
+        Regular body text at reading size. Kubernetes is a system that keeps
+        your applications running the way you told it to — think of it as a very
+        stubborn assistant that restarts anything that crashes.
+        <em>Italics carry emphasis</em>, <strong>bold carries weight</strong>,
+        and <a href="#type">links look like this</a>. Inline code such as
+        <code>kubectl get pods</code> sits inside prose without shouting.
+      </p>
+      <pre><code>$ kubectl get pods
+NAME        READY   STATUS    RESTARTS
+web-7d4b9   1/1     Running   0</code></pre>
+      <p class="meta">Metadata voice · 12 min read · updated Aug 2026</p>
+    </section>
+
+    <section aria-labelledby="article-demo">
+      <h2 id="article-demo">Article layout</h2>
+      <p>
+        See the notebook-margin layout with real prose:
+        <a href="/styleguide/article/">sample article →</a>
+      </p>
+    </section>
+  </div>
+</Base>
+
+<script>
+  const wire = (name: string, apply: (value: string) => void) => {
+    const stored = localStorage.getItem(name);
+    document
+      .querySelectorAll<HTMLInputElement>(`input[name="${name}"]`)
+      .forEach((input) => {
+        if (stored && input.value === stored) input.checked = true;
+        input.addEventListener('change', () => apply(input.value));
+      });
+  };
+
+  wire('font', (value) => {
+    if (value === 'source') {
+      localStorage.setItem('font', 'source');
+      document.documentElement.dataset.font = 'source';
+    } else {
+      localStorage.removeItem('font');
+      delete document.documentElement.dataset.font;
+    }
+  });
+
+  wire('accent', (value) => {
+    if (value === 'blue' || value === 'rust') {
+      localStorage.setItem('accent', value);
+      document.documentElement.dataset.accent = value;
+    } else {
+      localStorage.removeItem('accent');
+      delete document.documentElement.dataset.accent;
+    }
+  });
+</script>
+
+<style>
+  .guide {
+    max-width: var(--measure);
+  }
+
+  h1 {
+    font-size: var(--step-3);
+  }
+
+  .lede {
+    margin-top: var(--space-3);
+    font-size: var(--step-1);
+    color: var(--text-soft);
+    line-height: 1.5;
+  }
+
+  section {
+    margin-top: var(--space-5);
+  }
+
+  h2 {
+    font-size: var(--step-2);
+    border-top: 1px solid var(--line);
+    padding-top: var(--space-4);
+  }
+
+  section p,
+  section pre {
+    margin-top: var(--space-3);
+  }
+
+  .picker-row {
+    display: flex;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+    margin-top: var(--space-3);
+  }
+
+  fieldset {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: var(--space-3) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  fieldset label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--font-sans);
+    font-size: var(--step--1);
+    cursor: pointer;
+  }
+
+  .swatch {
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 50%;
+    display: inline-block;
+    border: 1px solid var(--line-strong);
+  }
+
+  .swatch.spruce {
+    background: #1e5d55;
+  }
+  .swatch.blue {
+    background: #35519b;
+  }
+  .swatch.rust {
+    background: #99471f;
+  }
+
+  .specimen-heading {
+    font-size: var(--step-2);
+    font-weight: 650;
+    line-height: 1.2;
+  }
+</style>

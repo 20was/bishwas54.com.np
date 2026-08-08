@@ -1,0 +1,115 @@
+/* ---------------------------------------------------------------------------
+   Design tokens — three reading themes: light (default), sepia, dark.
+   The inline head script always sets data-theme; the prefers-color-scheme
+   block below only covers the no-JS case.
+   --------------------------------------------------------------------------- */
+
+:root {
+  /* Type */
+  --font-serif: 'Literata', Charter, Georgia, serif;
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
+
+  /* Fluid type scale (minor third-ish, 17px → 19px base) */
+  --step--1: clamp(0.9rem, 0.87rem + 0.15vw, 0.98rem);
+  --step-0: clamp(1.0625rem, 1rem + 0.35vw, 1.1875rem);
+  --step-1: clamp(1.25rem, 1.19rem + 0.45vw, 1.45rem);
+  --step-2: clamp(1.5rem, 1.4rem + 0.6vw, 1.8rem);
+  --step-3: clamp(1.85rem, 1.7rem + 0.9vw, 2.3rem);
+
+  /* Layout */
+  --measure: 40rem; /* ~65ch of serif body */
+  --margin-col: 11rem; /* the notebook margin (wide screens) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2.5rem;
+  --space-6: 4rem;
+
+  /* Light theme (warm paper) */
+  color-scheme: light;
+  --bg: #faf9f5;
+  --bg-raised: #f1efe8;
+  --text: #211f1a;
+  --text-soft: #675f4f;
+  --line: #e3e0d6;
+  --line-strong: #c9c5b8;
+  --accent: #1e5d55;
+  --accent-soft: #e2ecea;
+  --code-bg: #f1efe8;
+  --focus: #1e5d55;
+}
+
+:root[data-theme='sepia'] {
+  color-scheme: light;
+  --bg: #f6ecd9;
+  --bg-raised: #eee1c8;
+  --text: #46382a;
+  --text-soft: #75634a;
+  --line: #e2d5bb;
+  --line-strong: #c9b894;
+  --accent: #175048;
+  --accent-soft: #e4e0cd;
+  --code-bg: #efe4cd;
+  --focus: #175048;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #151619;
+  --bg-raised: #1d1f23;
+  --text: #e4e2da;
+  --text-soft: #9c998e;
+  --line: #2e3035;
+  --line-strong: #45484f;
+  --accent: #7cbfb2;
+  --accent-soft: #1e2b29;
+  --code-bg: #1d1f23;
+  --focus: #7cbfb2;
+}
+
+/* No-JS fallback: honor OS dark preference when no data-theme was set */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #151619;
+    --bg-raised: #1d1f23;
+    --text: #e4e2da;
+    --text-soft: #9c998e;
+    --line: #2e3035;
+    --line-strong: #45484f;
+    --accent: #7cbfb2;
+    --accent-soft: #1e2b29;
+    --code-bg: #1d1f23;
+    --focus: #7cbfb2;
+  }
+}
+
+/* Accent alternatives — styleguide preview only; final pick gets folded
+   into the theme blocks above and these are removed. */
+:root[data-accent='blue'] {
+  --accent: #35519b;
+  --accent-soft: #e2e7f2;
+  --focus: #35519b;
+}
+:root[data-theme='dark'][data-accent='blue'] {
+  --accent: #93aee8;
+  --accent-soft: #1e2433;
+  --focus: #93aee8;
+}
+:root[data-accent='rust'] {
+  --accent: #99471f;
+  --accent-soft: #f2e5dc;
+  --focus: #99471f;
+}
+:root[data-theme='dark'][data-accent='rust'] {
+  --accent: #e09a72;
+  --accent-soft: #2e2119;
+  --focus: #e09a72;
+}
+
+/* Font alternative — styleguide preview only */
+:root[data-font='source'] {
+  --font-serif: 'Source Serif 4', Charter, Georgia, serif;
+}

@@ -1,25 +1,42 @@
 ---
-const title = 'Bishwas Adhikari';
+import Base from '../layouts/Base.astro';
+
 const description =
   'Beginner-friendly notes and tutorials. I learn things and write them down so you can learn them too.';
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title}</title>
-    <meta name="description" content={description} />
-    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
-  </head>
-  <body>
-    <main>
-      <h1>Bishwas Adhikari</h1>
-      <p>{description}</p>
-      <p>
-        This site is being built in the open. First tutorials are on the way.
-      </p>
-    </main>
-  </body>
-</html>
+<Base title="Bishwas Adhikari" description={description}>
+  <div class="home">
+    <h1>I learn things and write them down so you can learn them too.</h1>
+    <p class="intro">
+      I'm Bishwas — a software and platform engineer. This is my public
+      notebook: beginner-friendly tutorials and short notes on whatever I'm
+      learning, technical or not. Every tutorial ends with a small quiz so you
+      can check what stuck.
+    </p>
+    <p class="meta">First tutorials arriving soon · built in the open</p>
+  </div>
+</Base>
+
+<style>
+  .home {
+    max-width: var(--measure);
+  }
+
+  h1 {
+    font-size: var(--step-3);
+    font-weight: 700;
+  }
+
+  .intro {
+    margin-top: var(--space-4);
+    font-size: var(--step-1);
+    line-height: 1.5;
+    color: var(--text-soft);
+    text-wrap: pretty;
+  }
+
+  .meta {
+    margin-top: var(--space-5);
+  }
+</style>

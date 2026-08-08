@@ -1,0 +1,122 @@
+{
+  /* Three reading themes + auto. Radios = native keyboard + screen-reader
+    semantics; the web component just wires persistence. */
+}
+<theme-switch>
+  <fieldset>
+    <legend class="visually-hidden">Color theme</legend>
+    {
+      [
+        ['auto', 'Auto'],
+        ['light', 'Light'],
+        ['sepia', 'Sepia'],
+        ['dark', 'Dark'],
+      ].map(([value, label], i) => (
+        <label>
+          <input
+            type="radio"
+            name="theme"
+            value={value}
+            checked={i === 0}
+            class="visually-hidden"
+          />
+          <span>{label}</span>
+        </label>
+      ))
+    }
+  </fieldset>
+</theme-switch>
+
+<script>
+  class ThemeSwitch extends HTMLElement {
+    connectedCallback() {
+      const stored = localStorage.getItem('theme');
+      const current =
+        stored === 'light' || stored === 'sepia' || stored === 'dark'
+          ? stored
+          : 'auto';
+      const input = this.querySelector<HTMLInputElement>(
+        `input[value="${current}"]`,
+      );
+      if (input) input.checked = true;
+
+      this.addEventListener('change', (e) => {
+        const value = (e.target as HTMLInputElement).value;
+        if (value === 'auto') {
+          localStorage.removeItem('theme');
+          ThemeSwitch.applyTheme(
+            matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light',
+          );
+        } else {
+          localStorage.setItem('theme', value);
+          ThemeSwitch.applyTheme(value);
+        }
+      });
+
+      matchMedia('(prefers-color-scheme: dark)').addEventListener(
+        'change',
+        (e) => {
+          if (!localStorage.getItem('theme')) {
+            ThemeSwitch.applyTheme(e.matches ? 'dark' : 'light');
+          }
+        },
+      );
+    }
+
+    static applyTheme(theme: string) {
+      document.documentElement.dataset.theme = theme;
+      const themeColor = {
+        light: '#faf9f5',
+        sepia: '#f6ecd9',
+        dark: '#151619',
+      }[theme];
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute('content', themeColor ?? '#faf9f5');
+    }
+  }
+  customElements.define('theme-switch', ThemeSwitch);
+</script>
+
+<style>
+  fieldset {
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    padding: 2px;
+    margin: 0;
+    display: inline-flex;
+    gap: 2px;
+    background: var(--bg);
+  }
+
+  label {
+    cursor: pointer;
+  }
+
+  label span {
+    display: inline-block;
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 0.25em 0.7em;
+    border-radius: 99px;
+    color: var(--text-soft);
+  }
+
+  label:hover span {
+    color: var(--text);
+  }
+
+  label:has(input:checked) span {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  label:has(input:focus-visible) span {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+  }
+</style>
