@@ -24,7 +24,7 @@ Personal learning notebook of Bishwas Adhikari: beginner-friendly tutorials (eac
 - Markdown pipeline: stay on Astro's default Rust (Sätteri) pipeline. Do not add remark/rehype plugins (forces slow unified opt-in); use MDX components instead.
 - JSON-LD: only Article, BreadcrumbList, Person, ProfilePage, WebSite. Never add FAQPage/HowTo/Quiz schema (removed from Google rich results 2023–2026).
 - Content states: `draft: true` excludes from build; archived content stays visible with a banner.
-- AI-drafted content lands only via draft PRs from `inbox/` workflow; never modifies published posts; `aiAssisted: true` recorded in frontmatter (internal only, no public badge).
+- Content pipeline: Bishwas gives raw notes (inbox/ file or pasted) to a Claude Code session; the `new-post` skill has the full flow. Draft from supplied material only, ask instead of inventing, publish only on his explicit OK. `aiAssisted: true` in frontmatter (internal, no public badge). No GitHub-Action drafting, no API keys.
 - All PRs must pass: check, lint, format, build (later: tests, axe, lychee, Lighthouse).
 
 ## Plan

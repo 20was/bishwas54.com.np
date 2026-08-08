@@ -5,6 +5,22 @@ description: Author a new tutorial or note for bishwas54.com.np — correct fron
 
 # New post
 
+## The flow (this session IS the pipeline — no API keys, no Actions)
+
+Bishwas studies a topic anywhere, then hands over raw material: a file in
+`inbox/`, pasted text, a link, or just "write a tutorial about X from what
+I learned". From that:
+
+1. Extract the central idea. Draft using ONLY the supplied material plus
+   well-established general knowledge. Where his notes are ambiguous or
+   thin, ASK him — never guess, never invent his experiences, numbers,
+   results, or citations. Never claim something was tested unless he says
+   he tested it.
+2. Write the post per the rules below, show him a summary + the live-file
+   path, let him review (dev server or read the file).
+3. Publish only on his explicit OK (see checklist). Delete the processed
+   inbox file in the same commit.
+
 ## Decide type
 
 - **Tutorial** (`src/content/tutorials/<slug>.mdx`): teachable topic, step-by-step, ends with a quiz. Level: beginner unless told otherwise.

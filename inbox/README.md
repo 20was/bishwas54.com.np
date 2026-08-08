@@ -1,11 +1,16 @@
 # Inbox
 
-Drop raw notes here (any text/markdown file) and push to `main`. A GitHub
-Action hands the note to Claude, which opens a **draft PR** with a
-structured post. Review it, answer the inline questions, add your own
-experience, flip `draft: false`, and merge to publish.
+Raw-note drop zone. Studying something anywhere? Dump your rough notes
+here as a text/markdown file (or just paste them into chat), open Claude
+Code in this project, and say:
 
-The workflow can also be run manually from the Actions tab with pasted
-text (`Draft from inbox` → Run workflow).
+> make a note from inbox/whatever.md
+> — or —
+> turn this into a tutorial: <pasted notes>
 
-Requires the `ANTHROPIC_API_KEY` repository secret.
+Claude drafts the post following the `new-post` skill (beginner-friendly
+style, schema-correct frontmatter, quiz for tutorials, no invented
+facts), shows it to you for review, and publishes only after you approve.
+The processed inbox file gets deleted.
+
+No API keys, no GitHub Actions — your Claude Code session does the work.
