@@ -7,7 +7,10 @@ import { relatedPosts } from '../../lib/related';
 import { articleJsonLd, breadcrumbJsonLd } from '../../lib/jsonld';
 
 export async function getStaticPaths() {
-  const tutorials = await getCollection('tutorials', ({ data }) => !data.draft);
+  const tutorials = await getCollection(
+    'tutorials',
+    ({ data }) => !data.draft || import.meta.env.DEV,
+  );
   return tutorials.map((entry) => ({
     params: { id: entry.id },
     props: { entry, all: tutorials },
@@ -25,6 +28,19 @@ const minutes = readingMinutes(entry.body ?? '');
 const twoYears = 1000 * 60 * 60 * 24 * 730;
 const lastTouch = entry.data.dateUpdated ?? entry.data.datePublished;
 const stale = Date.now() - lastTouch.getTime() > twoYears;
+
+const series = entry.data.series;
+const seriesEntries = series
+  ? all
+      .filter((t) => t.data.series?.name === series.name)
+      .sort((a, b) => (a.data.series?.order ?? 0) - (b.data.series?.order ?? 0))
+  : [];
+const seriesIndex = seriesEntries.findIndex((t) => t.id === entry.id);
+const prev = seriesIndex > 0 ? seriesEntries[seriesIndex - 1] : undefined;
+const next =
+  seriesIndex >= 0 && seriesIndex < seriesEntries.length - 1
+    ? seriesEntries[seriesIndex + 1]
+    : undefined;
 
 const path = `/tutorials/${entry.id}/`;
 const ogImage = `/og/tutorials/${entry.id}.png`;
@@ -57,6 +73,13 @@ const jsonLd = [
 >
   <Fragment slot="margin">
     <p class="meta level">{entry.data.level}</p>
+    {
+      series && (
+        <p class="meta series-label">
+          {series.name} · part {series.order}
+        </p>
+      )
+    }
     <TableOfContents headings={headings} />
   </Fragment>
 
@@ -77,6 +100,27 @@ const jsonLd = [
   }
 
   <Content />
+
+  {
+    (prev || next) && (
+      <nav class="series-nav" aria-label="Series navigation">
+        {prev ? (
+          <a href={`/tutorials/${prev.id}/`} class="prev">
+            <span class="meta">← Previous in series</span>
+            <span>{prev.data.title}</span>
+          </a>
+        ) : (
+          <span />
+        )}
+        {next && (
+          <a href={`/tutorials/${next.id}/`} class="next">
+            <span class="meta">Next in series →</span>
+            <span>{next.data.title}</span>
+          </a>
+        )}
+      </nav>
+    )
+  }
 
   {
     related.length > 0 && (
@@ -104,6 +148,34 @@ const jsonLd = [
 
   .level {
     color: var(--accent);
+  }
+
+  .series-nav {
+    margin-top: var(--space-5);
+    border-top: 1px solid var(--line);
+    padding-top: var(--space-4);
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+  }
+
+  .series-nav a {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    text-decoration: none;
+    font-weight: 600;
+    max-width: 45%;
+  }
+
+  .series-nav a:hover {
+    color: var(--accent);
+  }
+
+  .series-nav .next {
+    text-align: right;
+    margin-left: auto;
   }
 
   .related {

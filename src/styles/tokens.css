@@ -17,9 +17,15 @@
   --step-2: clamp(1.5rem, 1.4rem + 0.6vw, 1.8rem);
   --step-3: clamp(1.85rem, 1.7rem + 0.9vw, 2.3rem);
 
-  /* Layout */
-  --measure: 40rem; /* ~65ch of serif body */
-  --margin-col: 11rem; /* the notebook margin (wide screens) */
+  /* Layout — one column, everywhere. Nav, footer and content share the
+     exact same width and edges on every page; the article TOC hangs in
+     the left gutter outside the column on wide screens. */
+  --measure: 44rem; /* ~70ch of serif body */
+  --margin-col: 14rem; /* the notebook margin (wide screens) */
+  --margin-gap: 3rem;
+  /* Every page — header, footer, and content — spans exactly the article
+     footprint: margin rail + gap + prose. One width, one set of edges. */
+  --page-width: calc(var(--margin-col) + var(--margin-gap) + var(--measure));
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 1rem;

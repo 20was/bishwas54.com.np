@@ -1,18 +1,18 @@
 {
-  /* Three reading themes + auto. Radios = native keyboard + screen-reader
-    semantics; the web component just wires persistence. */
+  /* Compact theme picker: one swatch per theme, radio semantics for
+     keyboard + screen readers. Auto = half light / half dark dot. */
 }
 <theme-switch>
   <fieldset>
     <legend class="visually-hidden">Color theme</legend>
     {
       [
-        ['auto', 'Auto'],
-        ['light', 'Light'],
-        ['sepia', 'Sepia'],
-        ['dark', 'Dark'],
+        ['auto', 'Match system theme'],
+        ['light', 'Light theme'],
+        ['sepia', 'Sepia theme'],
+        ['dark', 'Dark theme'],
       ].map(([value, label], i) => (
-        <label>
+        <label title={label} class={value}>
           <input
             type="radio"
             name="theme"
@@ -20,7 +20,8 @@
             checked={i === 0}
             class="visually-hidden"
           />
-          <span>{label}</span>
+          <span class="swatch" aria-hidden="true" />
+          <span class="visually-hidden">{label}</span>
         </label>
       ))
     }
@@ -82,41 +83,59 @@
 
 <style>
   fieldset {
-    border: 1px solid var(--line);
-    border-radius: 99px;
-    padding: 2px;
+    border: none;
+    padding: 0;
     margin: 0;
     display: inline-flex;
-    gap: 2px;
-    background: var(--bg);
+    align-items: center;
+    gap: 0.55rem;
   }
 
   label {
     cursor: pointer;
+    display: inline-flex;
+    padding: 2px;
+    border-radius: 50%;
   }
 
-  label span {
-    display: inline-block;
-    font-family: var(--font-sans);
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    padding: 0.25em 0.7em;
-    border-radius: 99px;
-    color: var(--text-soft);
+  .swatch {
+    width: 0.95rem;
+    height: 0.95rem;
+    border-radius: 50%;
+    border: 1px solid var(--line-strong);
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease;
   }
 
-  label:hover span {
-    color: var(--text);
+  label.light .swatch {
+    background: #faf9f5;
   }
 
-  label:has(input:checked) span {
-    background: var(--accent-soft);
-    color: var(--accent);
+  label.sepia .swatch {
+    background: #f6ecd9;
   }
 
-  label:has(input:focus-visible) span {
+  label.dark .swatch {
+    background: #151619;
+  }
+
+  label.auto .swatch {
+    background: linear-gradient(135deg, #faf9f5 50%, #151619 50%);
+  }
+
+  label:hover .swatch {
+    transform: scale(1.18);
+  }
+
+  label:has(input:checked) .swatch {
+    box-shadow:
+      0 0 0 2px var(--bg),
+      0 0 0 4px var(--accent);
+  }
+
+  label:has(input:focus-visible) {
     outline: 2px solid var(--focus);
-    outline-offset: 1px;
+    outline-offset: 2px;
   }
 </style>

@@ -6,11 +6,16 @@ const description =
   'Beginner-friendly notes and tutorials. I learn things and write them down so you can learn them too.';
 
 const tutorials = (
-  await getCollection('tutorials', ({ data }) => !data.draft)
+  await getCollection(
+    'tutorials',
+    ({ data }) => !data.draft || import.meta.env.DEV,
+  )
 ).sort(
   (a, b) => b.data.datePublished.getTime() - a.data.datePublished.getTime(),
 );
-const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
+const notes = (
+  await getCollection('notes', ({ data }) => !data.draft || import.meta.env.DEV)
+).sort(
   (a, b) => b.data.datePublished.getTime() - a.data.datePublished.getTime(),
 );
 

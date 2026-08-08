@@ -2,8 +2,14 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 
-const tutorials = await getCollection('tutorials', ({ data }) => !data.draft);
-const notes = await getCollection('notes', ({ data }) => !data.draft);
+const tutorials = await getCollection(
+  'tutorials',
+  ({ data }) => !data.draft || import.meta.env.DEV,
+);
+const notes = await getCollection(
+  'notes',
+  ({ data }) => !data.draft || import.meta.env.DEV,
+);
 
 const posts = [
   ...tutorials.map((e) => ({

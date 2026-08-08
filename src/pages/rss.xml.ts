@@ -3,8 +3,14 @@ import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 
 export const GET: APIRoute = async (context) => {
-  const tutorials = await getCollection('tutorials', ({ data }) => !data.draft);
-  const notes = await getCollection('notes', ({ data }) => !data.draft);
+  const tutorials = await getCollection(
+    'tutorials',
+    ({ data }) => !data.draft || import.meta.env.DEV,
+  );
+  const notes = await getCollection(
+    'notes',
+    ({ data }) => !data.draft || import.meta.env.DEV,
+  );
 
   const items = [
     ...tutorials.map((entry) => ({

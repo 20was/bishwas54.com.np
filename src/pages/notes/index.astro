@@ -2,7 +2,9 @@
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 
-const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort(
+const notes = (
+  await getCollection('notes', ({ data }) => !data.draft || import.meta.env.DEV)
+).sort(
   (a, b) => b.data.datePublished.getTime() - a.data.datePublished.getTime(),
 );
 

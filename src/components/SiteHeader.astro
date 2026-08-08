@@ -40,7 +40,7 @@ const current = Astro.url.pathname;
   }
 
   .inner {
-    max-width: calc(var(--measure) + 2 * (var(--margin-col) + 2.5rem));
+    max-width: var(--page-width);
     margin: 0 auto;
     padding: var(--space-3) var(--space-4);
     display: flex;

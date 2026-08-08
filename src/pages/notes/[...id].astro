@@ -4,7 +4,10 @@ import Article from '../../layouts/Article.astro';
 import { articleJsonLd, breadcrumbJsonLd } from '../../lib/jsonld';
 
 export async function getStaticPaths() {
-  const notes = await getCollection('notes', ({ data }) => !data.draft);
+  const notes = await getCollection(
+    'notes',
+    ({ data }) => !data.draft || import.meta.env.DEV,
+  );
   return notes.map((entry) => ({ params: { id: entry.id }, props: { entry } }));
 }
 

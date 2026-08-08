@@ -104,8 +104,19 @@ const blocks = [webSiteJsonLd(), ...jsonLd];
 
 <style>
   main {
-    max-width: calc(var(--measure) + 2 * (var(--margin-col) + 2.5rem));
+    max-width: var(--page-width);
     margin: 0 auto;
     padding: var(--space-5) var(--space-4);
+  }
+
+  /* Non-article pages: fill the same container the nav spans, so every
+     page's content starts and ends on the same lines as the header. */
+  main > :global(.listing),
+  main > :global(.home),
+  main > :global(.guide),
+  main > :global(.archive),
+  main > :global(.search-page),
+  main > :global(.lost) {
+    max-width: none;
   }
 </style>

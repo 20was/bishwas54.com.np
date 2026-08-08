@@ -4,10 +4,28 @@ import Base from '../../layouts/Base.astro';
 import { readingMinutes } from '../../lib/reading-time';
 
 const tutorials = (
-  await getCollection('tutorials', ({ data }) => !data.draft)
+  await getCollection(
+    'tutorials',
+    ({ data }) => !data.draft || import.meta.env.DEV,
+  )
 ).sort(
   (a, b) => b.data.datePublished.getTime() - a.data.datePublished.getTime(),
 );
+
+const seriesGroups = new Map<string, typeof tutorials>();
+for (const t of tutorials) {
+  const name = t.data.series?.name;
+  if (name) seriesGroups.set(name, [...(seriesGroups.get(name) ?? []), t]);
+}
+for (const [name, group] of seriesGroups) {
+  seriesGroups.set(
+    name,
+    group.sort(
+      (a, b) => (a.data.series?.order ?? 0) - (b.data.series?.order ?? 0),
+    ),
+  );
+}
+const standalone = tutorials.filter((t) => !t.data.series);
 
 const fmt = (d: Date) =>
   d.toLocaleDateString('en-US', {
@@ -28,14 +46,44 @@ const fmt = (d: Date) =>
       you can check what stuck.
     </p>
     {
-      tutorials.length === 0 ? (
+      tutorials.length === 0 && (
         <p class="empty">
           Nothing here yet — the first tutorials are being written. Check back
           soon.
         </p>
-      ) : (
+      )
+    }
+    {
+      [...seriesGroups.entries()].map(([name, group]) => (
+        <section class="series" aria-label={`Series: ${name}`}>
+          <h2 class="meta series-title">
+            Series · {name} — {group.length} part{group.length > 1 ? 's' : ''}
+          </h2>
+          <ul class="posts">
+            {group.map((t) => (
+              <li>
+                <p class="meta">Part {t.data.series?.order}</p>
+                <a href={`/tutorials/${t.id}/`}>{t.data.title}</a>
+                <p class="description">{t.data.description}</p>
+                <p class="meta">
+                  <time
+                    datetime={t.data.datePublished.toISOString().slice(0, 10)}
+                  >
+                    {fmt(t.data.datePublished)}
+                  </time>
+                  {' · '}
+                  {readingMinutes(t.body ?? '')} min · {t.data.level}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+    {
+      standalone.length > 0 && (
         <ul class="posts">
-          {tutorials.map((t) => (
+          {standalone.map((t) => (
             <li>
               <a href={`/tutorials/${t.id}/`}>{t.data.title}</a>
               <p class="description">{t.data.description}</p>
@@ -75,6 +123,21 @@ const fmt = (d: Date) =>
   .empty {
     margin-top: var(--space-5);
     color: var(--text-soft);
+  }
+
+  .series {
+    margin-top: var(--space-5);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: var(--space-4);
+  }
+
+  .series-title {
+    color: var(--accent);
+  }
+
+  .series .posts {
+    margin-top: var(--space-3);
   }
 
   .posts {
