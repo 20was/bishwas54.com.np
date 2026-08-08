@@ -1,0 +1,329 @@
+---
+title: 'Lesson 03 — Network Models and Layers'
+description: 'What a network layer actually is, where the official numbers and names come from, and how encapsulation nests the message like envelopes inside envelopes.'
+datePublished: 2026-08-08
+tags: ['networking', 'basics', 'devops']
+level: beginner
+series:
+  name: 'DevOps Networking'
+  order: 3
+aiAssisted: true
+---
+
+import Quiz from '../../components/Quiz.astro';
+import QuizQuestion from '../../components/QuizQuestion.astro';
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 3 — what a layer is, the layer numbers and names, encapsulation
+> **Builds on:** Lesson 01 (IP addresses), Lesson 02 (ports)
+
+---
+
+## Table of contents
+
+1. [The message](#the-message)
+2. [Sending a message is separate jobs](#sending-a-message-is-separate-jobs)
+3. [What a layer is](#what-a-layer-is)
+4. [The official numbers and names](#the-official-numbers-and-names)
+5. [The missing numbers](#the-missing-numbers)
+6. [Why the numbers matter in real work](#why-the-numbers-matter-in-real-work)
+7. [Encapsulation — envelopes inside envelopes](#encapsulation--envelopes-inside-envelopes)
+8. [Why layer independence is automatic](#why-layer-independence-is-automatic)
+9. [Easy to get wrong](#easy-to-get-wrong)
+10. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+11. [Terms locked in](#terms-locked-in)
+12. [Deliberately not covered yet](#deliberately-not-covered-yet)
+13. [Sources](#sources)
+
+---
+
+## The message
+
+The running example: open Chrome on a laptop, type `github.com`, and the page appears.
+
+For that page to appear, the laptop has to ask GitHub's computer for it. GitHub's computer is just a computer — like a laptop, but sitting in a big building full of computers, with no screen and no keyboard, because nobody sits in front of it.
+
+The laptop cannot shout across the world. The only thing it can do is push a message out through the WiFi and have it travel, hop by hop, junction by junction, to that building.
+
+Written out plainly, the message the laptop sends is roughly:
+
+```
+To computer: 140.82.121.4
+To program: the one on port 443
+Text: please send me the github.com homepage
+```
+
+Three lines. An address, a port, and what it wants. If you could freeze the message mid-flight and read it, that is what it says.
+
+---
+
+## Sending a message is separate jobs
+
+Getting that message to GitHub's building is not one job. Two very different jobs, to start with:
+
+**Job A — carry it.** The message physically has to move: out of the laptop, through the air to the router, through wires under the street, maybe through a cable under the ocean, into that building. Something has to do the *moving*.
+
+**Job B — navigate it.** At every junction along the path, something has to decide *which way* the message goes next. The address `140.82.121.4` is what gets read to make each decision.
+
+A delivery truck moves a package (carrying); the GPS decides which turn to take (navigating). The truck doesn't know where it's going. The GPS doesn't move anything. Both are needed; neither can do the other's job.
+
+Same with the message. The wires and WiFi carry it. The address navigates it.
+
+---
+
+## What a layer is
+
+Look at the message again, and ask: who reads each line?
+
+**Line 1 — the address.** Read by **every junction** along the way. Each junction reads it, picks a direction, passes the message on. No junction ever reads line 2 or line 3. Not their job.
+
+**Line 2 — the port.** Read by exactly one thing: **the destination computer, after the message arrives.** The journey is over, the message is inside the right building. Now the computer looks at the port and hands the message to the program holding it. (This is the port lesson — but notice *when* it happens: only at the very end, only at the destination.)
+
+**Line 3 — the text.** Read only by **the program**. Not the computer, not the junctions, nobody along the way. The program holding port 443 receives it, reads "please send me the homepage," and acts on it.
+
+```
+To computer: 140.82.121.4      ← read by every junction along the way
+To program: port 443           ← read by the destination computer, at arrival
+Text: please send me the page  ← read by the program, at the very end
+```
+
+Three lines. Three different readers. Three different moments.
+
+> **A layer is one line of the message plus the job of reading it.**
+
+That is the entire meaning of the word. When someone says "networking has layers," they mean exactly this: the message has parts, and different parts are read by different things at different points in the journey.
+
+The carrying job — wires and WiFi — is a layer too: the bottom one. It touches no lines at all and just moves the whole message.
+
+So the full stack, in plain words:
+
+```
+the text        ← read by the program           (top layer)
+the port        ← read by the computer
+the address     ← read by the junctions
+the carrying    ← wires and WiFi, reads nothing (bottom layer)
+```
+
+One message, four layers, top to bottom.
+
+---
+
+## The official numbers and names
+
+Engineers worldwide need to talk about these layers and mean the same thing, so the layers have official names and numbers. The numbers count **from the bottom up** — carrying is 1:
+
+```
+Layer 7   the text        ← official name: Application
+Layer 4   the port        ← official name: Transport
+Layer 3   the address     ← official name: Network
+Layer 1   the carrying    ← official name: Physical
+```
+
+The names, taken slowly:
+
+- **Physical** — the physically-carrying-it job. Wires, WiFi.
+- **Network** — the navigating job. The address, the junctions.
+- **Transport** — the port job. Named because it delivers to the right program.
+- **Application** — the text job. Named because the text is read by an application (Chrome, the Java backend).
+
+---
+
+## The missing numbers
+
+Where are 2, 5, and 6?
+
+They exist. The numbering comes from an old master plan called the **OSI model**, drawn up in the late 1970s, which defined seven layers. But the internet as actually built doesn't use all seven as separate things — some collapsed into their neighbours in practice.
+
+- **Layer 2** is real and gets its own later lesson (MAC addresses — it already has a file waiting).
+- **Layers 5 and 6** can be ignored for an entire career. Their jobs got absorbed into layer 7.
+
+Every DevOps engineer talks as if the stack is 1, 2, 3, 4, 7. People say "that's a Layer 7 problem" and skip from 4 to 7 without blinking.
+
+---
+
+## Why the numbers matter in real work
+
+The numbers are working vocabulary. In job posts, incident chats, and cloud settings, people say:
+
+| Phrase heard in real work | What it actually means |
+|---|---|
+| "That's a Layer 4 issue" | A port/delivery problem, not a content problem |
+| "This load balancer works at Layer 7" | It reads the text, not just the address |
+| "Layer 3 is fine" | The address and navigation work; look elsewhere |
+
+Each sentence instantly locates the problem in **one line of the message**. That is the entire power of the numbering — one number tells you which layer of the stack to look at.
+
+---
+
+## Encapsulation — envelopes inside envelopes
+
+The message has been drawn as three lines. The real arrangement is slightly different: the message is built like **envelopes inside envelopes**.
+
+Watch it get built, from the inside out:
+
+**Step 1.** Chrome writes the text: *please send me the homepage.* That is the innermost thing.
+
+**Step 2.** The text goes in an envelope. On that envelope is written: **port 443**.
+
+**Step 3.** That envelope goes inside a bigger envelope. On the bigger one is written: **140.82.121.4**.
+
+**Step 4.** The whole thing goes onto the wire and gets carried.
+
+```
+outer envelope:  140.82.121.4
+   inner envelope:  port 443
+      the text:  please send me the homepage
+```
+
+Now follow the journey, and watch each stage open exactly one envelope:
+
+**At every junction** — the junction sees only the **outer envelope**: an address. It reads it, picks a direction, passes it on. It never opens anything. It cannot see the port or the text — not hidden by rules, but genuinely not visible, because they are inside.
+
+**At GitHub's computer** — the address on the outer envelope matches. Journey over. The computer **opens the outer envelope** and finds the inner one: port 443. It hands that inner envelope to the program holding 443.
+
+**At the program** — the program **opens the inner envelope** and finds the text. Reads it. Acts on it.
+
+```
+junction:  reads outer envelope   →  never opens anything
+computer:  opens outer envelope   →  finds the port
+program:   opens inner envelope   →  finds the text
+```
+
+The official word for this is **encapsulation** — each layer's information wraps around the layer above it. Building the message (on the laptop) adds envelopes from the inside out. Receiving it (at GitHub) opens them from the outside in.
+
+---
+
+## Why layer independence is automatic
+
+The claim at the start of the lesson: each layer does only its own job and ignores the rest, so any layer can be changed without touching the others. Swap WiFi for a cable — layer 1 changed completely, and layers 3, 4, 7 never notice.
+
+Encapsulation is *why* this is true. A junction cannot misdeliver based on the text, and the carrying layer cannot care what the message says, because **each stage literally cannot see beyond its own envelope**.
+
+The independence of the layers is not a rule that someone enforces. It falls straight out of how the envelopes nest.
+
+---
+
+## Easy to get wrong
+
+**The numbers count from the bottom.** Layer 1 is the wire, not the application. Getting this backwards makes every "Layer X" sentence mean its opposite.
+
+**The gap from 4 to 7 is normal.** Hearing people skip layers 5 and 6 is not a mistake or missing knowledge — it is how the field actually talks. The internet in practice collapsed those layers into 7.
+
+**Junctions never read the port.** The port is only read at the destination, after the journey is over. Everything along the way navigates by address alone. (One refinement to this arrives in a later lesson — some in-between machines *can* open more envelopes than a plain junction. Noted here so the future lesson does not feel like a contradiction.)
+
+**"Machine," "computer," "server" — same thing in this track.** A server is just a computer in a building with no screen attached, because nobody sits in front of it.
+
+**The OSI model is a vocabulary, not a machine.** Nothing in a real network "runs" the OSI model. It is a shared way of naming the jobs so engineers can point at the right one.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| "Layers" | An abstract diagram memorised for exams, seven boxes with strange names | One message, several lines, each line read by a different thing at a different moment |
+| The OSI model | Something a network is built out of | A naming scheme — vocabulary for pointing at the right job |
+| Layer numbers | Trivia | A precise way of locating a problem: "Layer 4 issue" = look at the port line |
+| Layers 5 and 6 | Presumably important, must learn eventually | Absorbed into 7 in the real internet; safely ignored |
+| Why layers are independent | A design rule someone follows | Automatic — each stage physically cannot see inside the envelopes beyond its own |
+| A message | An abstract "chunk of data" | Envelopes inside envelopes: address outside, port inside that, text innermost |
+
+---
+
+## Terms locked in
+
+- **layer** — one line of the message plus the job of reading it
+- **Layer 1 / Physical** — the carrying: wires, WiFi
+- **Layer 3 / Network** — the address, read by junctions to navigate
+- **Layer 4 / Transport** — the port, read by the destination computer
+- **Layer 7 / Application** — the text, read by the program
+- **OSI model** — the 1970s seven-layer plan the numbering comes from
+- **encapsulation** — each layer's information wrapping around the layer above; envelopes inside envelopes
+- **server** — a computer in a building with no screen, because nobody sits in front of it
+
+---
+
+## Deliberately not covered yet
+
+- **Layer 2 / MAC addresses** — real, has its own lesson file waiting
+- **What the text actually looks like** — the exact format of "please send me the homepage" is HTTP, lesson 11
+- **The machines that open more envelopes than a junction** — load balancers and proxies, Part 5
+- **How the laptop learned GitHub's address in the first place** — DNS, next lesson
+- **TCP/IP model vs OSI model naming differences** — deferred until TCP itself is covered, where it makes sense
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| The OSI seven-layer model, original standard | ISO/IEC 7498-1 | https://www.iso.org/standard/20269.html |
+| The internet's own layer model (four layers, not seven) | RFC 1122 | https://www.rfc-editor.org/rfc/rfc1122.html |
+| Beginner-friendly layer overview | Cloudflare Learning — What is the OSI model? | https://www.cloudflare.com/learning/ddos/glossary/open-systems-interconnection-model-osi/ |
+
+> **Source note:** the ISO standard is paywalled (standards bodies charge for documents — unlike RFCs, which are free). RFC 1122 is the free, authoritative description of how the internet actually layers things. The Cloudflare page is a readable secondary source.
+
+---
+
+*End of Lesson 03. Next: DNS — how the laptop learned GitHub's address in the first place.*
+
+## Check what stuck
+
+<Quiz>
+  <QuizQuestion
+    question="In this lesson, what is a layer?"
+    options={[
+      'A piece of hardware inside the router',
+      'One line of the message plus the job of reading it',
+      'A security barrier between two networks',
+    ]}
+    answer={1}
+  >
+    That is the entire meaning of the word: the message has parts, and
+    different parts are read by different things at different points in the
+    journey — address by junctions, port by the destination computer, text
+    by the program.
+  </QuizQuestion>
+  <QuizQuestion
+    question="Who reads the address (Layer 3) on the message?"
+    options={[
+      'Every junction along the way',
+      'Only the destination computer, at arrival',
+      'The program holding the port',
+    ]}
+    answer={0}
+  >
+    Each junction reads the address, picks a direction, and passes the
+    message on. The port is read only at the destination, and the text only
+    by the program at the very end.
+  </QuizQuestion>
+  <QuizQuestion
+    question="Why do people skip from Layer 4 straight to Layer 7?"
+    options={[
+      'Layers 5 and 6 are secret and rarely documented',
+      'The jobs of layers 5 and 6 got absorbed into layer 7 in practice',
+      'It is a common mistake that should be corrected',
+    ]}
+    answer={1}
+  >
+    The numbering comes from the seven-layer OSI plan, but the internet as
+    actually built collapsed 5 and 6 into 7. Saying 1, 2, 3, 4, 7 is how the
+    field really talks, not missing knowledge.
+  </QuizQuestion>
+  <QuizQuestion
+    question="Why can one layer be swapped without touching the others?"
+    options={[
+      'A standards body enforces strict separation rules',
+      'Each stage physically cannot see beyond its own envelope',
+      'Modern routers are programmed to ignore other layers',
+    ]}
+    answer={1}
+  >
+    Encapsulation makes independence automatic: a junction sees only the
+    outer envelope, so it cannot misdeliver based on the text, and the
+    carrying layer cannot care what the message says. Nobody enforces it —
+    it falls straight out of how the envelopes nest.
+  </QuizQuestion>
+</Quiz>

@@ -1,0 +1,352 @@
+---
+title: 'Lesson 06 — MAC Addresses and ARP'
+description: 'Why every device carries a second, factory-burned address, how the Layer 2 envelope and ARP handle the final metres of delivery, and why the MAC envelope is rewritten at every hop while the IP envelope crosses the world untouched.'
+datePublished: 2026-08-08
+tags: ['networking', 'basics', 'devops']
+level: beginner
+series:
+  name: 'DevOps Networking'
+  order: 6
+aiAssisted: true
+---
+
+import Quiz from '../../components/Quiz.astro';
+import QuizQuestion from '../../components/QuizQuestion.astro';
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 3 — MAC addresses (Layer 2), ARP, the complete journey end to end
+> **Builds on:** Lesson 03 (the envelope stack, the missing Layer 2), Lesson 05 (the DHCP shout)
+
+---
+
+## Table of contents
+
+1. [Two puzzles hiding in plain sight](#two-puzzles-hiding-in-plain-sight)
+2. [The answer: every device has a second address](#the-answer-every-device-has-a-second-address)
+3. [IP vs MAC — the difference is the point](#ip-vs-mac--the-difference-is-the-point)
+4. [The envelope we never drew — Layer 2](#the-envelope-we-never-drew--layer-2)
+5. [How the shout worked — the broadcast address](#how-the-shout-worked--the-broadcast-address)
+6. [ARP — learning someone's MAC](#arp--learning-someones-mac)
+7. [The full journey, corrected](#the-full-journey-corrected)
+8. [The complete story: from factory to pixels](#the-complete-story-from-factory-to-pixels)
+9. [Easy to get wrong](#easy-to-get-wrong)
+10. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+11. [Terms locked in](#terms-locked-in)
+12. [Deliberately not covered yet](#deliberately-not-covered-yet)
+13. [Sources](#sources)
+
+---
+
+## Two puzzles hiding in plain sight
+
+**Puzzle 1.** The DHCP shout worked *before the laptop had any IP number*. So whatever carried that shout through the house — it wasn't IP. Something underneath IP was doing the delivering.
+
+**Puzzle 2.** The laptop sends the envelope for `140.82.121.4` — GitHub, far away. But the *first hop* of that journey is just: get the envelope from the laptop to the router, three metres away, through the air. The junctions-read-the-address story explains the world journey. It doesn't explain the three metres. WiFi is radio — when the laptop transmits, the waves hit **every device in the house**. The TV receives them. The phone receives them. Yet only the router acts. How does each device know "this is for me" or "ignore this"?
+
+The IP address can't be the answer — the TV isn't reading IP envelopes addressed to other machines, and during the DHCP shout there were no IP numbers at all.
+
+---
+
+## The answer: every device has a second address
+
+Every piece of network hardware — the WiFi chip in a laptop, in a phone, in a TV, each socket on a router — left its factory with a permanent address burned in. It is called the **MAC address**, and it looks nothing like an IP:
+
+```
+a4:83:e7:2f:1b:9c
+```
+
+Six pairs, letters and digits (hexadecimal, like IPv6 from Lesson 01). Every network chip ever manufactured has a different one — the first three pairs identify the manufacturer, the rest are its serial numbering. A laptop's WiFi chip has exactly one, and keeps it for life, on every network it ever joins.
+
+---
+
+## IP vs MAC — the difference is the point
+
+| | IP address | MAC address |
+|---|---|---|
+| Comes from | Assigned by the network (DHCP lease) | Burned in at the factory |
+| Changes? | Different on every network you join | Never — same at home, at a café, forever |
+| Meaningful | Across the whole world | Only inside the local network |
+| Answers | *where* to deliver, globally | *which physical chip*, locally |
+
+The IP is your address in the world. The MAC is the serial number of your chip. Delivery across the world runs on IP; the final metres run on MAC.
+
+---
+
+## The envelope we never drew — Layer 2
+
+This pays the debt from the layers lesson. The envelope stack had the IP address on the outermost envelope. In truth, there is one more envelope **outside even that one** — and it carries MAC addresses:
+
+```
+OUTERMOST envelope:  to MAC a4:83:...    ← Layer 2 ← the missing layer
+  outer envelope:    to 140.82.121.4     ← Layer 3
+    inner envelope:  port 443            ← Layer 4
+      the text:      please send me...   ← Layer 7
+```
+
+**Layer 2 is the MAC envelope.** Its official name is the *Data Link* layer. Every message travelling through the house is wrapped in one, addressed to a specific chip.
+
+The every-device-hears-everything problem now solves cleanly: all the radio waves hit the TV, yes — but the TV's chip reads the MAC on the outermost envelope, sees it is not its own, and **discards the message without opening anything**. Chips do this filtering in hardware, ignoring almost everything they hear. Only the chip whose MAC matches opens the Layer 2 envelope and passes the contents upward.
+
+---
+
+## How the shout worked — the broadcast address
+
+There is one special MAC address meaning "every chip":
+
+```
+ff:ff:ff:ff:ff:ff
+```
+
+An envelope addressed to that is opened by **everyone** — that is what a broadcast literally is. The DHCP shout worked without any IP numbers because it never used IP delivery at all; it rode a Layer 2 envelope addressed to all chips.
+
+---
+
+## ARP — learning someone's MAC
+
+One gap remains. The laptop wants to send the GitHub envelope to the router. DHCP said the way out is `192.168.1.1` — an IP. But the Layer 2 envelope needs the router's **MAC**, and nobody ever told the laptop that.
+
+The solution is charmingly simple — another shout. The protocol is called **ARP** (Address Resolution Protocol — a protocol, from Lesson 05, is just an agreed script):
+
+**Laptop, to all chips:** *"Who has 192.168.1.1? Tell me your MAC."*
+
+Every device hears it. The TV: not me, ignore. The phone: not me, ignore. The router: *"Me — I'm a4:83:e7:2f:1b:9c."*
+
+Done. The laptop notes the answer in a little table it keeps — its **ARP cache** (caching, exactly as in DNS: remember answers, don't re-ask) — and can now wrap Layer 2 envelopes for the router all day. The entries expire after a while and get re-asked.
+
+TTL thinking, third appearance: DNS answers, DHCP leases, ARP entries. Nothing stale survives.
+
+---
+
+## The full journey, corrected
+
+The complete, honest picture of sending to GitHub — watch what happens to each envelope:
+
+```
+laptop builds:   [MAC: router's chip [IP: 140.82.121.4 [port 443 [text]]]]
+                        ↓
+router receives it (MAC matches — opens Layer 2 envelope)
+reads the IP envelope: 140.82.121.4 — not for me, pass it on
+wraps it in a FRESH Layer 2 envelope, addressed to the next junction's chip
+                        ↓
+next junction: same again — open MAC envelope, read IP, new MAC envelope
+                        ↓
+        ...every hop, all the way to GitHub...
+```
+
+The insight worth keeping:
+
+> **The IP envelope survives the whole journey untouched. The MAC envelope is torn off and rewritten at every single hop.**
+
+The IP answers "where is this ultimately going" — constant from laptop to GitHub. The MAC answers "which chip gets it *next*" — different at every step. The laptop never learned GitHub's MAC, and never could: MAC addresses mean nothing beyond the local network. It only ever needed the MAC of its *next hop* — the router. Each hop only ever needs the next chip.
+
+---
+
+## The complete story: from factory to pixels
+
+Everything from six lessons, stitched into one story: a laptop is manufactured, bought, and used to load `github.com`.
+
+### Act 0 — In the factory, months before you exist as a customer
+
+A chip company manufactures a WiFi chip. Before it ships, it burns an address into it: `a4:83:e7:2f:1b:9c`. The first three pairs are the company's own manufacturer code; the last three are its serial numbering. No other chip on Earth gets this string.
+
+A laptop company buys that chip, solders it into a laptop, boxes it. The laptop sits in a warehouse, then a shop. It has a MAC. It has **no IP** — an IP is not a property of a laptop; it is a property of *joining a network*. This laptop has joined nothing.
+
+### Act 1 — You buy it and open the lid at home
+
+You type in the WiFi password. The laptop connects to the router's radio — but connecting is just Layer 1, waves established between chips. The laptop still has no number, no idea who to ask for DNS, no idea where the way out is. It can do nothing yet.
+
+**DHCP now runs, and it must start with a shout** — because with no IP, normal addressing is impossible:
+
+The laptop wraps a Layer 2 envelope addressed to `ff:ff:ff:ff:ff:ff` — every chip. Inside: *"anyone, I need a number."* The TV's chip opens it (broadcast — everyone opens it), sees a DHCP plea, has no DHCP program, ignores it. The phone likewise. The router's chip opens it, and the router *does* run a DHCP program:
+
+```
+Router:  I offer 192.168.1.47
+Laptop:  I'll take it
+Router:  Confirmed. Bundle attached:
+           your number:  192.168.1.47
+           DNS runner:   8.8.8.8
+           way out:      192.168.1.1
+```
+
+Shout, offer, take, confirm. The laptop is now a citizen of the network. Elapsed time: under a second from password to citizenship.
+
+### Act 2 — You type github.com and press Enter
+
+Chrome looks at `github.com`. It's a name; junctions need numbers. **Two conversations coming** — DNS first.
+
+Chrome asks the DNS question to `8.8.8.8`, port 53 (the well-known DNS port). But watch the *first metres* of that question. It must physically reach the router before anything else can happen, and a Layer 2 envelope needs the router's MAC. The bundle only said `192.168.1.1` — an IP. So, once only:
+
+**ARP shout:** *"Who has 192.168.1.1?"* — TV ignores, phone ignores, router answers: *"me, a4:83:e7:2f:1b:9c."* Into the ARP cache it goes. Every future message to the router skips this step.
+
+Now the DNS question travels, fully wrapped:
+
+```
+[MAC: router  [IP: 8.8.8.8  [port 53  ["what number is github.com?"]]]]
+```
+
+The router opens the MAC envelope (its chip matched), reads the IP — `8.8.8.8`, not me — tears off the old Layer 2 envelope, wraps a fresh one addressed to the next junction's chip, and passes it on. Every junction between the house and Google's runner does the same: **IP envelope untouched, MAC envelope rewritten**.
+
+At `8.8.8.8`, the runner (which holds nothing, fetches everything) walks the chain — root: *"ask .com"* → the `.com` computer, run by the registry Verisign, checks its 160-million-line master list: *"ask GitHub's own computer"* → GitHub's authoritative computer: *"github.com is 140.82.121.4, remember it for 60 seconds."* Answer plus TTL travels all the way back into Chrome's hands. (Next visit within the TTL: no chain, no walk — cache.)
+
+### Act 3 — The real request
+
+Conversation two. Chrome builds the envelope stack it wanted to build all along:
+
+```
+[MAC: router  [IP: 140.82.121.4  [port 443  ["please send me the homepage"]]]]
+```
+
+- **Port 443** because you typed `https` — that prefix *is* the port choice.
+- **Router's MAC** from the ARP cache — no shout needed this time.
+- Source details ride along too: source IP `192.168.1.47`, and a temporary source port the operating system just invented — say `51862` — the return address for this specific conversation.
+
+Off it goes. Router: open MAC envelope, read IP, fresh MAC envelope, forward. Junction after junction, wire after wire, possibly under an ocean — MAC envelopes born and torn at every hop, the IP envelope crossing the world unmodified.
+
+### Act 4 — Inside GitHub's building
+
+The envelope arrives at the computer holding `140.82.121.4` — a computer like any laptop, minus the screen, because nobody sits in front of it. The layers unwrap **in order, one reader each**, exactly as the layers lesson promised:
+
+- Chip: MAC matches → open Layer 2, pass up
+- Computer: IP matches, journey over → open Layer 3, read the port
+- Port list: `443 → held by GitHub's web program` — a waiter, which claimed 443 long ago and has been listening since → hand over Layer 4's contents
+- The program — the only thing that ever reads the text: *"please send me the homepage"*
+
+It composes the answer and addresses the reply envelope using the request's source details — the return address the message carried, destination port `51862`, the temporary one. That number is how, when the reply reaches the laptop, it lands in *Chrome's* hands and not some other program's — and in the right tab's conversation at that.
+
+### Act 5 — The pixels
+
+The reply crosses the world the same way — its own IP envelope constant, MAC envelopes rewritten hop by hop — arrives at the laptop's chip, unwraps layer by layer, reaches Chrome via port `51862`. Chrome reads the page content and paints it.
+
+**Total elapsed: a few hundred milliseconds.** Two conversations, one ARP shout, two chain walks' worth of caching for next time, and several dozen MAC envelopes born and destroyed.
+
+### The two honest gaps in the story
+
+Both already on the lesson list:
+
+- The reply's journey *back into the house* skips a step — the house shares one public number (Lesson 01's home-router trick). That mechanism is **NAT**, lesson 09.
+- "The junctions somehow know which way to pass it" is doing heavy lifting. That is **routing**, lesson 07 — next.
+
+---
+
+## Easy to get wrong
+
+**MAC does not replace IP, and IP does not replace MAC.** They answer different questions at different scales. Both are on every message, always.
+
+**The MAC envelope never crosses the world.** It is local-only, rewritten at every hop. A laptop never learns, and could never use, the MAC of a faraway computer.
+
+**Broadcasts are Layer 2 events.** The DHCP shout and the ARP shout work with zero IP numbers involved — they are addressed to all chips, not to all IPs.
+
+**Hardware filtering is why shared airwaves work.** Every device physically receives everything; the chip discards non-matching MAC envelopes before the computer ever sees them. (One consequence for later: a chip *can* be told not to discard — that is how network monitoring tools see everyone's traffic. Parked until the tools lesson.)
+
+**The ARP cache is another cache.** Same failure smell as DNS staleness: if a device's chip is replaced (new MAC, same IP), peers with the old cached entry keep addressing envelopes to a chip that no longer exists — until their entries expire.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| Addresses | A computer has an IP address | A computer has two addresses: a world one (IP, leased) and a chip one (MAC, factory-permanent) |
+| WiFi privacy of delivery | Messages go to the right device | Radio hits every device; chips filter by MAC in hardware and discard the rest |
+| The envelope stack | IP is the outermost envelope | One more outside it — the Layer 2 MAC envelope, rewritten at every hop |
+| Layer 2 | The mysterious missing layer | The chip-to-chip delivery layer: MAC addresses, broadcasts, ARP |
+| Reaching the router | Just happens | Requires its MAC — learned once by an ARP shout, cached, expiring |
+| A message's journey | One address carries it end to end | Two-tier: IP constant across the world, MAC born and torn at every single hop |
+
+---
+
+## Terms locked in
+
+- **MAC address** — the permanent, factory-burned address of a network chip; six hex pairs; local-only meaning
+- **Layer 2 / Data Link** — the chip-to-chip delivery layer; the outermost envelope
+- **broadcast address (`ff:ff:ff:ff:ff:ff`)** — the MAC meaning "every chip opens this"
+- **ARP (Address Resolution Protocol)** — the shout that turns a local IP into a MAC
+- **ARP cache** — the remembered IP→MAC table, entries expiring like DNS answers
+- **next hop** — the only chip a sender ever needs the MAC of; the journey is a chain of next hops
+
+---
+
+## Deliberately not covered yet
+
+- **Routing** — how each junction decides which way to pass the IP envelope; next lesson
+- **NAT** — how replies find their way back into a house that shares one public number; lesson 09
+- **Chips told not to discard** — network monitoring; troubleshooting tools lesson
+- **Switches** — the boxes that make wired Layer 2 delivery efficient in offices; introduced if and when needed (home WiFi doesn't require them to understand anything so far)
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| ARP specification | RFC 826 | https://www.rfc-editor.org/rfc/rfc826.html |
+| MAC address structure, manufacturer prefixes | IEEE — MAC address assignments | https://standards.ieee.org/products-programs/regauth/ |
+| Look up any MAC prefix's manufacturer | IEEE OUI public listing | https://standards-oui.ieee.org/ |
+| Readable overview of MAC vs IP | Cloudflare Learning — What is a MAC address? | https://www.cloudflare.com/learning/network-layer/what-is-a-mac-address/ |
+
+> **Source note:** RFC 826 is from 1982 and still governs — ARP is one of the oldest living pieces of the internet. The IEEE (a standards body like the IETF, but for hardware) hands out the manufacturer prefixes; their public list lets you identify the maker of any chip from the first three pairs of its MAC.
+
+---
+
+*End of Lesson 06. Next: routing — how every junction on Earth knows which way to pass the envelope.*
+
+## Check what stuck
+
+<Quiz>
+  <QuizQuestion
+    question="Where does a MAC address come from?"
+    options={[
+      'The router assigns it along with the IP during the DHCP lease',
+      'It is burned into the network chip at the factory and never changes',
+      'The operating system generates a new one on every network you join',
+    ]}
+    answer={1}
+  >
+    A MAC is factory-permanent: the first three pairs identify the
+    manufacturer, the rest are its serial numbering. The IP, by contrast, is
+    leased by the network and is different on every network you join.
+  </QuizQuestion>
+  <QuizQuestion
+    question="An envelope addressed to ff:ff:ff:ff:ff:ff is opened by..."
+    options={[
+      'Only the router',
+      'Every chip on the local network',
+      'Whichever chip answered the last ARP shout',
+    ]}
+    answer={1}
+  >
+    That is the broadcast address — the MAC meaning "every chip opens this."
+    It is how the DHCP shout works before any IP numbers exist at all: the
+    shout rides a Layer 2 envelope, never IP delivery.
+  </QuizQuestion>
+  <QuizQuestion
+    question="What problem does ARP solve?"
+    options={[
+      'Turning a domain name into an IP address',
+      'Assigning a fresh IP number to a new device',
+      'Turning a local IP address into a MAC address',
+    ]}
+    answer={2}
+  >
+    DHCP said the way out is 192.168.1.1 — an IP — but the Layer 2 envelope
+    needs the router's MAC. ARP shouts "Who has 192.168.1.1?", the router
+    answers, and the result goes into the ARP cache, expiring like a DNS
+    answer.
+  </QuizQuestion>
+  <QuizQuestion
+    question="On the journey from a laptop to GitHub, which envelope is torn off and rewritten at every hop?"
+    options={[
+      'The IP envelope',
+      'The MAC envelope',
+      'The port envelope',
+    ]}
+    answer={1}
+  >
+    The IP envelope survives the whole journey untouched — it answers "where
+    is this ultimately going." The MAC envelope answers "which chip gets it
+    next" and is born and torn at every single hop; the laptop only ever
+    needed the MAC of its next hop, the router.
+  </QuizQuestion>
+</Quiz>

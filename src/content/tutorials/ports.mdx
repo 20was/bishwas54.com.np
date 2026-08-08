@@ -1,0 +1,500 @@
+---
+title: 'Lesson 02 — Ports'
+description: 'How ports identify which program on a machine a request is for, who claims them, the permission rule for low numbers, and why every request carries a source port too.'
+datePublished: 2026-08-08
+tags: ['networking', 'basics', 'devops']
+level: beginner
+series:
+  name: 'DevOps Networking'
+  order: 2
+aiAssisted: true
+---
+
+import Quiz from '../../components/Quiz.astro';
+import QuizQuestion from '../../components/QuizQuestion.astro';
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 1 — ports
+> **Builds on:** Lesson 01 (networking, IP addresses)
+
+---
+
+## Table of contents
+
+1. [The problem ports solve](#the-problem-ports-solve)
+2. [What a port is](#what-a-port-is)
+3. [Claiming a port](#claiming-a-port)
+4. [One program per port](#one-program-per-port)
+5. [The port range and the permission rule](#the-port-range-and-the-permission-rule)
+6. [Which programs have ports](#which-programs-have-ports)
+7. [Who sets a program's port](#who-sets-a-programs-port)
+8. [Open and closed](#open-and-closed)
+9. [The source port](#the-source-port)
+10. [Walkthrough: what happens when you visit a website](#walkthrough-what-happens-when-you-visit-a-website)
+11. [Questions raised in this lesson](#questions-raised-in-this-lesson)
+12. [The running project](#the-running-project)
+13. [Easy to get wrong](#easy-to-get-wrong)
+14. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+15. [Terms locked in](#terms-locked-in)
+16. [Deliberately not covered yet](#deliberately-not-covered-yet)
+17. [Sources](#sources)
+
+---
+
+## The problem ports solve
+
+From Lesson 01: an IP address identifies one machine on a network.
+
+But a machine is not running one thing. A single machine might be running a React frontend, a Java backend, and a PostgreSQL database all at the same time.
+
+So a request arrives at the machine — and then what? Which of those three programs is it for?
+
+The IP address cannot answer that. It only answers "which machine."
+
+---
+
+## What a port is
+
+The machine needs a second number. Not to identify itself, but to identify **which program on it** the request is meant for.
+
+That second number is the **port**.
+
+It is written after the address, separated by a colon:
+
+```
+10.0.1.10:8080
+```
+
+Read it as two separate pieces of information:
+
+```
+10.0.1.10      →  which machine
+     8080      →  which program on that machine
+```
+
+> **The IP finds the machine. The port finds the program on it.**
+
+---
+
+## Claiming a port
+
+When a program starts up, it picks a port number and tells the machine: *anything that arrives for this number, give it to me.*
+
+That is what the word **listening** means. It appears constantly in startup logs:
+
+```
+Tomcat started on port 8080
+Local: http://localhost:3000
+```
+
+Those lines mean the program has claimed that port. From then on, any request arriving at that machine carrying that number gets handed to that program, and nothing else.
+
+That output is also how you find out what port a program took — the program tells you when it starts.
+
+---
+
+## One program per port
+
+**Only one program can hold a given port on a machine at a time.**
+
+If a program is already listening on 8080 and a second program tries to claim it, the second one fails to start:
+
+```
+Error: listen EADDRINUSE: address already in use :::8080
+```
+
+That message means exactly one thing: something else already holds that port. Not a code problem. Not a permissions problem. Another program got there first.
+
+**Who gets the port?** Whoever claimed it first. There is no queue and no priority — first come, first served.
+
+---
+
+## The port range and the permission rule
+
+Ports run from **0 to 65535**. They split into two groups that behave differently:
+
+| Range | Name | Behaviour |
+|---|---|---|
+| 0 – 1023 | well-known ports | **Protected.** Admin permission required to claim one. |
+| 1024 – 65535 | everything else | **Free.** Any program can claim any of these. |
+
+The rule is simply: **low numbers are protected, high numbers are free.**
+
+Some well-known ports worth recognising:
+
+```
+22    SSH
+53    DNS
+80    HTTP
+443   HTTPS
+5432  PostgreSQL
+```
+
+These are agreed globally, which is why every piece of software on Earth treats 443 as HTTPS.
+
+**Attempting to claim a protected port without permission** produces a different error from the one above:
+
+```
+Error: listen EACCES: permission denied 0.0.0.0:443
+```
+
+Two distinct failures, easily confused:
+
+| Error | Meaning |
+|---|---|
+| `EADDRINUSE` | The port is already taken by another program |
+| `EACCES` | You lack permission to use this port |
+
+> The reason the low ports are protected involves servers and HTTPS, neither of which has been covered yet. It is deferred to a later lesson rather than half-explained here.
+
+---
+
+## Which programs have ports
+
+Not every installed program has a port. Only programs that **wait to be contacted** do.
+
+There are two kinds of program:
+
+**Waiters** — they sit there doing nothing until something contacts them. They need a port, because that is how anything reaches them.
+
+**Askers** — they go out and request things from elsewhere. They are not waiting for anyone, so they need no port to be reached at.
+
+| Program | Claims a port? | Why |
+|---|---|---|
+| PostgreSQL | Yes | Waits for programs to connect to it |
+| A running Spring Boot app | Yes | Waits for requests |
+| React dev server | Yes | Waits for the browser |
+| Chrome | No | Sends requests, does not wait for them |
+| VS Code, Photoshop | No | Same — they ask, they do not wait |
+
+Chrome is the clarifying case. It sends requests constantly but never sits waiting to receive one, so it claims no port to listen on. Most applications on a laptop are like this.
+
+---
+
+## Who sets a program's port
+
+**The software ships with a default.** Install PostgreSQL, start it, and it takes 5432. Create a React app, run it, and it takes 3000. Nothing was configured — that number came with the software, chosen by whoever built it.
+
+**You can override it.** For a Spring Boot app that is a line in its config file:
+
+```
+server.port=9000
+```
+
+Now it claims 9000 instead of 8080.
+
+So: the default comes with the software, and it is overridable but rarely needs overriding.
+
+**Who decided these defaults?** Two different situations:
+
+- **Low ports are officially registered.** 443 for HTTPS, 22 for SSH, 5432 for PostgreSQL. These are recorded in a registry maintained by IANA — the same organisation from Lesson 01 that holds the global IP address pool. That registration is why the meaning is universal.
+- **High ports are just convention.** 3000 for React, 8080 for Spring Boot, 5173 for Vite. Nobody registered these. A tool's authors picked a free number above 1023 and other people copied it.
+
+**Why development tools all use odd high numbers:** because of the permission rule. A tool that defaulted to port 80 would require admin permission every single time it started. Defaulting to 3000 or 8080 means it just runs.
+
+---
+
+## Open and closed
+
+A port is **open** when a program has claimed it and is listening. It is **closed** when nothing has claimed it.
+
+```
+10.0.1.10  port 3000   open     ← React frontend is listening
+10.0.1.10  port 8080   open     ← Java backend is listening
+10.0.1.10  port 5432   open     ← PostgreSQL is listening
+10.0.1.10  port 9999   closed   ← nothing has claimed it
+```
+
+Port 9999 is not blocked or protected. It is simply empty. A request arriving there has no recipient and is refused immediately.
+
+**Why this matters in practice:** "closed port" and "the app is down" produce the same symptom. If the Java backend crashes, it stops listening, port 8080 becomes closed, and requests start failing — even though the machine itself is perfectly healthy and still answering on 3000 and 5432.
+
+> There is a second reason a port can appear closed, where something actively blocks traffic even though a program *is* listening. That belongs to a later topic. For now, closed means nothing is listening.
+
+---
+
+## The source port
+
+Everything above concerns the **destination** port. But every request carries **two** ports.
+
+When the Java backend opens a connection to PostgreSQL, the operating system also assigns the backend a temporary port of its own, picked automatically from the high range:
+
+```
+from  10.0.1.10:51847   ←  temporary, assigned automatically
+to    10.0.1.10:5432    ←  PostgreSQL, chosen deliberately
+```
+
+**First reason it exists:** PostgreSQL has to send an answer back. It cannot reply to port 5432 — that is its own port. It needs a return address, and `51847` is it.
+
+**Second reason, and the more important one:** suppose the Java backend opens three database connections at once. All three go to the same destination. When three answers come back, what distinguishes them?
+
+```
+from 10.0.1.10:51847  →  to 10.0.1.10:5432
+from 10.0.1.10:51848  →  to 10.0.1.10:5432
+from 10.0.1.10:51849  →  to 10.0.1.10:5432
+```
+
+The source ports. Each connection gets a different one, so each reply lands in the right place. Without them, simultaneous requests to the same destination would be indistinguishable.
+
+| | Destination port | Source port |
+|---|---|---|
+| Chosen by | You / the software's default | The operating system |
+| Value | Fixed and known in advance | Different for every connection |
+| Lifetime | Held as long as the program runs | Discarded when the connection ends |
+
+---
+
+## Walkthrough: what happens when you visit a website
+
+Typing this into a browser:
+
+```
+https://github.com
+```
+
+**1.** Chrome needs GitHub's IP address. It gets one — say `140.82.121.4`. *(How it gets that number is the next topic.)*
+
+**2.** Chrome needs a port. None was typed. But `https` at the front tells Chrome which to use: 443. That is what `https` means to Chrome — use port 443.
+
+**3.** Chrome now has a complete destination and builds the thing it is sending — a chunk of data with the destination on the front of it:
+
+```
+destination IP:    140.82.121.4
+destination port:  443
+content:           give me the homepage
+```
+
+That whole chunk is "the request." The first two lines are the label on it.
+
+**4.** It travels across the network and arrives at machine `140.82.121.4`.
+
+**5.** The machine reads the label, sees `443`, and checks its own list of which programs hold which ports:
+
+```
+port 22    → held by nothing
+port 443   → held by GitHub's web program
+port 5432  → held by nothing
+```
+
+443 is held by the web program, so the machine hands the chunk to it.
+
+**So "a request arrives marked :443"** means: a chunk of data showed up, and the number written on its label was 443.
+
+---
+
+## Questions raised in this lesson
+
+---
+
+### If all three programs run on one machine, do they share an IP but have different ports?
+
+Yes. One machine has one address. All three programs share that single address, and each claims its own port:
+
+```
+10.0.1.10:3000   →  React frontend
+10.0.1.10:8080   →  Java backend
+10.0.1.10:5432   →  PostgreSQL
+```
+
+Same machine number every time. Only the port changes.
+
+This is different from running the three programs on three separate machines, where each would have its own IP *and* its own port:
+
+```
+10.0.1.10:3000   →  React frontend      (machine 1)
+10.0.1.20:8080   →  Java backend        (machine 2)
+10.0.1.30:5432   →  PostgreSQL          (machine 3)
+```
+
+Both arrangements are real and both work. The rule does not change between them: the port always answers "which program," never "which machine."
+
+---
+
+### With `https://api.github.com`, does the request still reach the homepage?
+
+No.
+
+**The port does not change.** `https` still means 443, regardless of what name follows it.
+
+**The machine changes.** `github.com` and `api.github.com` are different names, so they resolve to different IP addresses:
+
+```
+github.com       →  140.82.121.4:443
+api.github.com   →  140.82.121.6:443
+```
+
+Same port, different machine. The request never arrives at the machine serving the homepage — it goes elsewhere entirely. That other machine has its own program holding its own port 443, serving API responses instead of web pages.
+
+Two different buildings, both with a room numbered 443, doing different work inside.
+
+*(How the request specifies "the homepage" versus a particular piece of data lives inside the content portion of the chunk. That is HTTP, a later topic. At the port level: `https` fixes the port, the name determines the machine.)*
+
+---
+
+### What happens if a React app is overridden from port 3000 to 443 locally?
+
+It fails to start:
+
+```
+Error: listen EACCES: permission denied 0.0.0.0:443
+```
+
+443 is below 1024, and `npm start` runs as a normal user, not an admin. The system refuses before anything else happens.
+
+**Could it be forced?** Yes, by running it as an administrator. That is a bad idea — it grants a development server administrator rights over the whole machine to gain nothing, since the browser reaches `localhost:3000` perfectly well.
+
+**The practical answer:** leave it on 3000. The port 443 problem only appears on a real deployment, and by then something else is handling 443 in front of the app. That something else is the reverse proxy from the traffic line in Lesson 01 — a later topic.
+
+---
+
+## The running project
+
+From this lesson onward, one example app is carried through the whole track:
+
+| Tier | What it is | Port |
+|---|---|---|
+| Frontend | React app | 3000 |
+| Backend | Java Spring Boot API | 8080 |
+| Database | PostgreSQL | 5432 |
+
+**Current state — one machine, three programs, three ports:**
+
+```
+Machine 10.0.1.10
+  ├── port 3000  →  React frontend
+  ├── port 8080  →  Java backend
+  └── port 5432  →  PostgreSQL
+```
+
+This shape gets rebuilt at every level of the track — as containers, then as pods, then on cloud infrastructure — so the same app can be compared across all of them.
+
+---
+
+## Easy to get wrong
+
+**`EADDRINUSE` and `EACCES` are different problems.** The first means the port is taken; something else must be stopped or a different port chosen. The second means the port is protected; permission is the issue, not availability. Fixing one when you have the other wastes a lot of time.
+
+**A closed port and a crashed app look identical from outside.** Both produce a refused connection. The port being closed is the *symptom*; the program having stopped is usually the *cause*.
+
+**"Port" does not mean "machine."** A port number alone is meaningless — port 8080 exists on every machine in the world simultaneously. Only `IP:port` identifies something specific.
+
+**Not everything has a port.** Only programs that wait to be contacted. This is the fastest way to reason about whether something needs one.
+
+**The port number carries no authority.** A machine hands data to whichever program holds the number, without checking whether it is the correct program.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| `localhost:3000` | A magic string that makes the app appear | Two facts joined by a colon — this machine, and the program holding port 3000 on it |
+| Ports | Something to do with security or firewalls | An addressing mechanism: which program on this machine |
+| Why React uses 3000 | An arbitrary choice, or something React requires | A free number above 1023, chosen so the tool starts without admin permission |
+| Port already in use | A confusing error | Precise information: another program claimed it first |
+| A program having a port | Something all software has | Only programs that wait to be contacted |
+| Where ports come from | You configure them | The software ships with a default; overriding is possible but rarely needed |
+| A request | An abstract event | A chunk of data with a destination IP and port written on the front of it |
+
+---
+
+## Terms locked in
+
+- **port** — the number identifying which program on a machine a request is for
+- **listening** — a program holding a port and waiting for requests on it
+- **open port** — a port a program has claimed
+- **closed port** — a port nothing has claimed
+- **well-known ports** — 0 to 1023, protected, admin permission required
+- **default port** — the port a piece of software claims unless told otherwise
+- **source port** — the temporary port the operating system assigns to the sender, used as a return address
+- **destination port** — the port being sent to, chosen deliberately
+- **`EADDRINUSE`** — the port is already taken
+- **`EACCES`** — permission denied for this port
+
+---
+
+## Deliberately not covered yet
+
+- **Why low ports are protected** — needs servers and HTTPS first
+- DNS — how a name becomes an IP address (next lesson)
+- HTTP — what is inside the content portion of a request
+- TCP / UDP — how a connection is actually established and maintained
+- firewalls — the other reason a port can appear closed
+- reverse proxies — what handles port 443 in a real deployment
+- routing, TLS, subnets, NAT
+- AWS, Docker, Kubernetes, load balancers, ingress
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| Official port number registry | IANA Service Name and Transport Protocol Port Number Registry | https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml |
+| Port ranges and their categories | RFC 6335 | https://www.rfc-editor.org/rfc/rfc6335.html |
+| TCP, where port numbers are defined | RFC 9293 | https://www.rfc-editor.org/rfc/rfc9293.html |
+
+> **Note on the permission rule:** the 0–1023 restriction is an operating system convention on Unix-like systems, not something defined in an internet standard. It is documented in system manuals rather than an RFC.
+
+---
+
+*End of Lesson 02. Next: DNS.*
+
+## Check what stuck
+
+<Quiz>
+  <QuizQuestion
+    question="In 10.0.1.10:8080, what does the 8080 identify?"
+    options={[
+      'Which machine on the network the request is for',
+      'Which program on that machine the request is for',
+      'How fast the connection is allowed to be',
+    ]}
+    answer={1}
+  >
+    The IP finds the machine; the port finds the program on it. A port number
+    alone is meaningless — only IP:port identifies something specific.
+  </QuizQuestion>
+  <QuizQuestion
+    question="A program fails to start with EADDRINUSE on port 8080. What happened?"
+    options={[
+      'You lack permission to use that port',
+      'The port is below 1024 and protected',
+      'Another program already claimed the port first',
+    ]}
+    answer={2}
+  >
+    EADDRINUSE means the port is already taken — first come, first served.
+    Permission problems produce a different error, EACCES, and confusing the
+    two wastes a lot of debugging time.
+  </QuizQuestion>
+  <QuizQuestion
+    question="Which programs claim a port?"
+    options={[
+      'Every program installed on the machine',
+      'Only programs that wait to be contacted',
+      'Only databases like PostgreSQL',
+    ]}
+    answer={1}
+  >
+    Waiters need a port so anything can reach them; askers like Chrome send
+    requests constantly but never sit waiting to receive one, so they claim
+    no port to listen on.
+  </QuizQuestion>
+  <QuizQuestion
+    question="Why do development tools like React default to high ports such as 3000?"
+    options={[
+      'IANA registered 3000 for development servers',
+      'Ports above 1023 are free to claim without admin permission',
+      'High ports are faster than low ports',
+    ]}
+    answer={1}
+  >
+    Low ports (0 to 1023) are protected and need admin permission. A tool
+    defaulting to 80 would demand admin rights every start; defaulting to
+    3000 or 8080 means it just runs. High-port defaults are convention, not
+    registration.
+  </QuizQuestion>
+</Quiz>

@@ -2,3 +2,6 @@ dist/
 .astro/
 node_modules/
 package-lock.json
+
+# Owner's content stays verbatim — formatter must not rewrite it
+src/content/

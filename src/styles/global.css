@@ -208,6 +208,37 @@ hr {
   margin-top: var(--space-2);
 }
 
+/* Tables */
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: var(--space-4) 0 0;
+  font-size: 0.92em;
+  display: block;
+  overflow-x: auto;
+}
+
+.prose th,
+.prose td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.prose th {
+  font-family: var(--font-sans);
+  font-size: 0.78em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  background: var(--bg-raised);
+}
+
+.prose tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--bg-raised) 50%, transparent);
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *,

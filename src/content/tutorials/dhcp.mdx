@@ -1,0 +1,272 @@
+---
+title: 'Lesson 05 — DHCP'
+description: 'How DHCP automatically hands a joining computer its number, DNS runner, and way out through a four-line conversation, and why the number is a lease rather than a gift.'
+datePublished: 2026-08-08
+tags: ['networking', 'basics', 'devops']
+level: beginner
+series:
+  name: 'DevOps Networking'
+  order: 5
+aiAssisted: true
+---
+
+import Quiz from '../../components/Quiz.astro';
+import QuizQuestion from '../../components/QuizQuestion.astro';
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 1 — DHCP (plus two vocabulary words: host, protocol)
+> **Builds on:** Lesson 01 (the router "handing out numbers"), Lesson 04 (the router handing over "who to ask" for DNS)
+
+---
+
+## Table of contents
+
+1. [The mystery this lesson solves](#the-mystery-this-lesson-solves)
+2. [The full name, word by word](#the-full-name-word-by-word)
+3. [The problem DHCP solves](#the-problem-dhcp-solves)
+4. [How it works — the four-line conversation](#how-it-works--the-four-line-conversation)
+5. [The bundle](#the-bundle)
+6. [The number is borrowed, not given — leases](#the-number-is-borrowed-not-given--leases)
+7. [The one place DHCP is the wrong tool](#the-one-place-dhcp-is-the-wrong-tool)
+8. [Easy to get wrong](#easy-to-get-wrong)
+9. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+10. [Terms locked in](#terms-locked-in)
+11. [Deliberately not covered yet](#deliberately-not-covered-yet)
+12. [Sources](#sources)
+
+---
+
+## The mystery this lesson solves
+
+Twice now, a mysterious event has appeared in these lessons — *"when your laptop joins the WiFi, the router hands it a number, and also who to ask for DNS."* Lesson 01 used it. The DNS lesson used it. This lesson gives it its name.
+
+That handing-over is called **DHCP**. One job:
+
+> When a computer joins a network, DHCP automatically gives it everything it needs to participate.
+
+---
+
+## The full name, word by word
+
+**DHCP = Dynamic Host Configuration Protocol.**
+
+Every word maps to something in this lesson:
+
+| Word | Meaning in plain terms |
+|---|---|
+| **Dynamic** | Assigned on the fly, from a pool, with leases — the opposite of typed-in-by-hand and permanent |
+| **Host** | The official word for *a computer on a network*. A laptop, a TV, the project machine — each is a host |
+| **Configuration** | The bundle it hands over: your number, the DNS runner, the way out |
+| **Protocol** | An agreed format for a conversation. The four-line exchange below is the same everywhere, because both sides follow the same script |
+
+The full name is literally the lesson in four words: *dynamically configuring hosts, by protocol.*
+
+Two of those words matter far beyond DHCP:
+
+- **Host** — from here on, when documentation says "host," read "a computer on the network." The word has been hiding in plain sight since the ports lesson: `localhost` — *local host* — means "this computer right here."
+- **Protocol** — an agreed conversation script between computers. DNS is a protocol. The web's HTTP is a protocol — that is what the P stands for, sitting unexplained inside `https://` since the ports lesson. It gets its own lesson later.
+
+---
+
+## The problem DHCP solves
+
+Imagine DHCP didn't exist. You buy a new laptop, connect to your home WiFi, and — nothing works. The laptop has no number, and nothing gives it one. You would have to open settings and type, by hand:
+
+- an IP address for the laptop — one that no other device in the house is using, so first go check what the phone and the TV took,
+- and the address of a DNS runner, or no name will ever resolve.
+
+Get the number wrong — pick one the TV already holds — and both devices break in confusing ways. Now scale that to an office with five hundred laptops and visitors arriving daily: a person whose entire job is typing numbers into settings and untangling collisions.
+
+That was actually reality in the early days. DHCP was invented so that joining a network requires **zero typing**.
+
+---
+
+## How it works — the four-line conversation
+
+When a laptop connects to the WiFi, before anything else, it has a conversation with the router. Four lines long — and the first line contains a puzzle:
+
+**Laptop:** *"Anyone out there? I'm new, I need a number."*
+
+The puzzle: how does the laptop send *any* message yet? A message needs a destination address and a source address, and the laptop has neither. It doesn't even know the router's number.
+
+The answer: this one message is special. It is a **shout**. Instead of a destination, it is marked "to absolutely everyone on this local network." Every device in the house receives it. The TV ignores it. The phone ignores it. One device is listening for exactly this shout: the router, which runs a small DHCP answering program.
+
+**Router:** *"Welcome. I offer you 192.168.1.47."*
+
+The router keeps a list of which numbers in the house are already handed out, picks a free one, and offers it.
+
+**Laptop:** *"I'll take 192.168.1.47."*
+
+**Router:** *"Confirmed. It's yours. Also, here's everything else you need."*
+
+Four lines, a fraction of a second, zero typing. That is the entire "handing over" from Lesson 01.
+
+---
+
+## The bundle
+
+The final confirmation carries a small bundle, not just the number — and this is where the DNS lesson connects:
+
+```
+your number:            192.168.1.47
+the DNS runner to ask:  8.8.8.8        ← the "who to ask" from the DNS lesson
+the way out:            192.168.1.1    ← the router itself, for leaving the house
+```
+
+The third line is new, held loosely for now: it is the address of the door — where the laptop should push any message destined *beyond* the house. It becomes the star of the routing lesson. What matters here: DHCP is where a computer learns it.
+
+---
+
+## The number is borrowed, not given — leases
+
+The router doesn't *give* the number — it **lends** it, with a time limit. The loan is called a **lease**:
+
+> *"192.168.1.47 is yours for 24 hours."*
+
+Before the lease runs out, the laptop quietly asks to extend it, and normally gets it — which is why a laptop keeps the same number for months. But if the laptop leaves and never comes back, the lease expires and the number returns to the free pool, ready for the next device.
+
+**Why lend instead of give?** Because the pool is small. A home router typically has a couple hundred numbers to hand out. If numbers were given forever, every phone that ever visited the house would keep one eternally, and the pool would slowly empty — the IPv4 exhaustion story from Lesson 01, in miniature, inside the house. Leases mean departed devices automatically return what they borrowed.
+
+The pattern has appeared before: a granted thing with an expiry that makes the system self-cleaning. DNS answers have TTL; DHCP numbers have leases. Same idea, same reason — nothing stale survives forever.
+
+---
+
+## The one place DHCP is the wrong tool
+
+Connect this to the project, because a trap hides here.
+
+The project machine is `10.0.1.10`, and the React frontend has `10.0.1.10:8080` written in its settings to reach the Java backend. Suppose that machine got its number by DHCP lease. One day the machine reboots, the lease has lapsed, the router hands it a *different* free number — and the frontend's setting now points at nothing. Everything breaks, and nothing looks wrong anywhere.
+
+So a rule of thumb the whole industry follows:
+
+- **Devices that come and go** — laptops, phones — take whatever DHCP offers. Nobody contacts *them*, so their number can change freely.
+- **Computers that others depend on** — the project machine, anything running a waiter from the ports lesson — get a **fixed number** that never changes, set deliberately.
+
+The deeper fix is already known from the DNS lesson: depend on *names*, not numbers, and the number underneath can change freely. Real systems use both — fixed numbers for the machines, names on top. The project will do exactly this when it gets deployed properly.
+
+---
+
+## Easy to get wrong
+
+**DHCP assigns; it does not connect.** The WiFi connection happens first; DHCP is the conversation that runs immediately after, over that connection. "Connected to WiFi but no internet" is often exactly this split: the connection succeeded, the DHCP conversation failed, and the laptop sits numberless.
+
+**The first message is a shout, not a normal message.** It has no destination — it goes to everyone on the local network at once. This is the only way a device with no number and no knowledge of the network can speak at all.
+
+**A lease renewal is invisible; a lease change is not.** Devices normally renew and keep their number for months, so DHCP feels permanent. It isn't — and the day a dependent-upon machine's number silently changes is the day this lesson pays for itself.
+
+**DHCP hands out more than the number.** The DNS runner and the way out arrive in the same bundle. When a machine has "wrong DNS" fresh out of joining a network, the DHCP answering program is where that setting came from.
+
+**Fixed numbers are a decision, not a default.** Machines that others depend on don't get stable numbers by luck — someone deliberately configured them outside the lease pool.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| Joining WiFi | It just works | A four-line shout/offer/take/confirm conversation runs instantly, following a fixed script |
+| Your IP at home | Your number, permanently | A lease from the router's pool, silently renewed, recyclable the moment you leave for good |
+| Where DNS settings come from | Somewhere in the operating system | The DHCP bundle, handed over at join time |
+| "Host" | Vague tech word | Precisely: a computer on a network — as in `localhost`, this computer |
+| "Protocol" | Vague tech word | Precisely: an agreed conversation script both sides follow — DHCP's four lines, DNS's question/answer |
+| Servers and DHCP | Same as any device | Deliberately excluded — machines others depend on need numbers that never change |
+
+---
+
+## Terms locked in
+
+- **DHCP (Dynamic Host Configuration Protocol)** — the system that automatically hands a joining computer its number, DNS runner, and way out
+- **host** — a computer on a network; `localhost` = this computer
+- **protocol** — an agreed conversation script between computers
+- **shout (broadcast)** — a message to everyone on the local network at once; the official word is *broadcast*
+- **lease** — the time-limited loan of an IP number from the pool
+- **pool** — the set of numbers a DHCP answering program has available to lend
+- **the way out (gateway)** — the address a computer sends beyond-the-network messages to; officially the *gateway*; star of the next lesson
+
+---
+
+## Deliberately not covered yet
+
+- **Routing and "the way out"** — what the router actually does with a message that leaves the house; next lesson
+- **How the shout physically reaches everyone** — needs Layer 2 / MAC addresses, lesson 06... which comes *before* routing in our file order, so it arrives first
+- **HTTP — the P in https** — its own lesson, number 11
+- **How fixed numbers are configured in practice** — appears naturally in the AWS part, where every project machine will get one
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| DHCP specification | RFC 2131 | https://www.rfc-editor.org/rfc/rfc2131.html |
+| The bundle's contents (DNS runner, gateway, and more) | RFC 2132 — DHCP Options | https://www.rfc-editor.org/rfc/rfc2132.html |
+| Readable overview | Cloudflare Learning — What is DHCP? | https://www.cloudflare.com/learning/network-layer/what-is-dhcp/ |
+
+> **Source note:** RFC 2131 names the four messages DISCOVER, OFFER, REQUEST, ACK — the official versions of shout / offer / take / confirm. Same conversation, formal names.
+
+---
+
+*End of Lesson 05. Next: MAC addresses and ARP — how the shout physically reaches everyone, and the last envelope we haven't opened.*
+
+## Check what stuck
+
+<Quiz>
+  <QuizQuestion
+    question="What does DHCP do when a computer joins a network?"
+    options={[
+      'It connects the computer to the WiFi',
+      'It automatically hands over everything needed to participate — a number, the DNS runner, and the way out',
+      'It checks whether the computer is allowed on the network',
+    ]}
+    answer={1}
+  >
+    DHCP assigns; it does not connect. The WiFi connection happens first,
+    and DHCP is the four-line conversation that runs immediately after,
+    delivering the whole bundle with zero typing.
+  </QuizQuestion>
+  <QuizQuestion
+    question="Why is the laptop's first DHCP message a shout to everyone?"
+    options={[
+      'Shouting is faster than a normal message',
+      'The laptop has no number and does not know the router\'s number, so it cannot address anyone',
+      'The router requires all messages to be broadcast',
+    ]}
+    answer={1}
+  >
+    A normal message needs a destination and a source, and the joining
+    laptop has neither. The shout — officially a broadcast — goes to
+    everyone on the local network, and only the router's DHCP answering
+    program responds.
+  </QuizQuestion>
+  <QuizQuestion
+    question="Why does the router lend numbers as leases instead of giving them forever?"
+    options={[
+      'So departed devices automatically return numbers to the small pool',
+      'Because IP addresses legally cannot be owned',
+      'To force devices to reconnect every day',
+    ]}
+    answer={0}
+  >
+    A home router only has a couple hundred numbers. Given forever, every
+    visiting phone would keep one eternally — IPv4 exhaustion in miniature.
+    Leases make the system self-cleaning, the same way TTL does for DNS
+    answers.
+  </QuizQuestion>
+  <QuizQuestion
+    question="Which machines should NOT rely on DHCP for their number?"
+    options={[
+      'Laptops and phones that come and go',
+      'Machines that others depend on, like one running a database or backend',
+      'Any device connected over WiFi',
+    ]}
+    answer={1}
+  >
+    If a depended-upon machine's lease lapses and it reboots into a
+    different number, everything pointing at it breaks while nothing looks
+    wrong anywhere. Machines that others contact get a fixed number, set
+    deliberately — and depending on names instead of numbers is the deeper
+    fix.
+  </QuizQuestion>
+</Quiz>

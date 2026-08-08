@@ -1,0 +1,757 @@
+---
+title: 'Lesson 04 — DNS'
+description: 'How DNS turns names into numbers by walking a chain of delegation, why caching and TTL exist, and who actually runs, sells, and rents out domain names.'
+datePublished: 2026-08-08
+tags: ['networking', 'basics', 'devops']
+level: beginner
+series:
+  name: 'DevOps Networking'
+  order: 4
+aiAssisted: true
+---
+
+import Quiz from '../../components/Quiz.astro';
+import QuizQuestion from '../../components/QuizQuestion.astro';
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 4 — the name-to-number problem, the runner and the chain, caching, TTL
+> **Builds on:** Lesson 01 (IP addresses), Lesson 02 (ports), Lesson 03 (the message and its envelopes)
+
+---
+
+## Table of contents
+
+1. [The cheat we finally remove](#the-cheat-we-finally-remove)
+2. [The problem DNS solves](#the-problem-dns-solves)
+3. [Why not just use numbers directly?](#why-not-just-use-numbers-directly)
+4. [Who answers the question?](#who-answers-the-question)
+5. [Which computer does the laptop ask?](#which-computer-does-the-laptop-ask)
+6. [How the answering computer finds out — the chain](#how-the-answering-computer-finds-out--the-chain)
+7. [Why a chain instead of one big list?](#why-a-chain-instead-of-one-big-list)
+8. [Why 8.8.8.8, and who else does this job](#why-8888-and-who-else-does-this-job)
+9. [Remembering answers — caching](#remembering-answers--caching)
+10. [The problem remembering creates](#the-problem-remembering-creates)
+11. [The fix — TTL](#the-fix--ttl)
+12. [The complete picture](#the-complete-picture)
+13. [Questions raised in this lesson](#questions-raised-in-this-lesson)
+14. [Easy to get wrong](#easy-to-get-wrong)
+15. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+16. [Terms locked in](#terms-locked-in)
+17. [Deliberately not covered yet](#deliberately-not-covered-yet)
+18. [Sources](#sources)
+
+---
+
+## The cheat we finally remove
+
+Every walkthrough so far started with the same cheat: *"the laptop gets GitHub's address — take it as given."* This lesson removes it.
+
+You typed `github.com` into Chrome.
+
+Look at what you typed. It's a name. Words, letters, dots. But the outer envelope needs `140.82.121.4` — a number. Junctions navigate by numbers only. A junction handed an envelope saying "github.com" would have no idea which direction to pass it. **Names mean nothing to the network.**
+
+So before Chrome can build the envelope, it has one problem to solve.
+
+---
+
+## The problem DNS solves
+
+> **Turn the name into the number.**
+
+That is the entire job of DNS. Nothing else. Name goes in, number comes out.
+
+---
+
+## Why not just use numbers directly?
+
+You could. Typing `140.82.121.4` into Chrome works right now. So why does the whole world use names instead?
+
+Two reasons, both practical:
+
+**Reason 1 — people can't remember numbers.** You know `github.com`, `google.com`, `youtube.com` by heart. You don't know a single one of their numbers. Names are for people; numbers are for junctions. DNS is the translator between the two.
+
+**Reason 2 — the number changes; the name doesn't.** This is the deeper one. GitHub moves its computers sometimes — new building, new machines, new numbers. If the whole world had memorised `140.82.121.4`, every move would break everything for everyone. Instead, the world memorises the *name*, and GitHub just updates what the name points to. The name is a permanent label; the number behind it can quietly change.
+
+This problem already exists in our own project: the React frontend has `10.0.1.10:8080` written in its settings to reach the Java backend. If that computer's number ever changes, the frontend breaks. A name would fix that. This thought returns when the project gets deployed for real.
+
+---
+
+## Who answers the question?
+
+Chrome has a name and needs a number. Where does the answer come from?
+
+Not from Chrome — it doesn't know. Not from the laptop — it doesn't know either.
+
+The answer comes from **asking another computer.** There are computers on the internet whose entire job is answering exactly one kind of question: *"what number is this name?"* Chrome sends one of them a tiny message — a real message, with envelopes, just like everything else:
+
+```
+To computer: (the answering computer's number)
+To program: the one on port 53
+Text: what number is github.com?
+```
+
+And a tiny message comes back:
+
+```
+Text: github.com is 140.82.121.4
+```
+
+Now — and only now — Chrome can build the real envelope and ask for the page.
+
+So every visit to a website is actually **two conversations**, back to back:
+
+```
+Conversation 1:  "what number is github.com?"  →  "140.82.121.4"
+Conversation 2:  "please send me the homepage" →  (the page)
+```
+
+The first one is DNS. It happens before every site you visit, in a few milliseconds, invisibly.
+
+**Port 53:** in the ports lesson, the well-known ports list had `53 DNS` sitting in it, unexplained. Now it's explained. Port 53 is where the answering programs listen, on every DNS computer in the world.
+
+---
+
+## Which computer does the laptop ask?
+
+The laptop already knows who to ask — it has known since the moment it joined the WiFi.
+
+From Lesson 01: when a laptop connects to WiFi, the router hands it a number automatically. What wasn't said then: the router hands over **two** things at that moment. The laptop's number, and one more line:
+
+> *"...and if you ever need a name turned into a number, ask this computer: `8.8.8.8`."*
+
+That second thing is the address of an answering computer. The laptop writes it down and keeps it. From then on, every DNS question the laptop ever asks goes to that one address, on port 53.
+
+So there is no mystery and no searching. The laptop was handed the answer-computer's address on day one, the same way it was handed its own number.
+
+---
+
+## How the answering computer finds out — the chain
+
+The answering computer receives:
+
+```
+Text: what number is github.com?
+```
+
+Here's the thing — **it doesn't know either.** There are hundreds of millions of names in the world. No single computer holds them all. That would be impossible to keep updated.
+
+Instead, the answering computer *finds out*, by following a chain:
+
+**Step 1 — ask the top.** There's a small set of computers at the very top of the naming world, called the **root**. Their addresses are famous and never change — every answering computer on Earth has them built in. The root doesn't know where `github.com` is. But it knows something smaller:
+
+> *"I don't know github.com. But everything ending in `.com` — ask this computer over there."*
+
+It answers with a **referral**: not the number, but who to ask next.
+
+**Step 2 — ask the `.com` computer.** The answering computer follows the referral and asks again. The `.com` computer holds the list of every name ending in `.com` — but only one fact about each:
+
+> *"I don't know github.com's number. But GitHub runs its own answering computer, here's its address — ask them."*
+
+Another referral. One step closer.
+
+**Step 3 — ask GitHub's own computer.** This one **does** know. GitHub runs it, GitHub keeps it updated, and it holds the actual numbers for GitHub's names:
+
+> *"github.com is 140.82.121.4."*
+
+Done. The chain is three questions long:
+
+```
+8.8.8.8 asks the root        →  "ask the .com computer"
+8.8.8.8 asks .com            →  "ask GitHub's own computer"
+8.8.8.8 asks GitHub's        →  "140.82.121.4"          ← the answer
+```
+
+Then `8.8.8.8` sends that number back to the laptop, and Chrome builds the envelope.
+
+---
+
+## Why a chain instead of one big list?
+
+Because of who gets to *update* things.
+
+Look at where the real answer lived: on **GitHub's own computer.** When GitHub moves buildings and the number changes, GitHub edits its own computer, and the change is instantly live for the whole world. No permission needed, no central authority to notify.
+
+The root only knows who handles `.com`. The `.com` computer only knows who speaks for each name. Each level knows one small thing and delegates the rest.
+
+Same shape as the IANA → regional registries → providers chain from Lesson 01 — nobody holds everything; everybody holds one piece and points downward.
+
+---
+
+## Why 8.8.8.8, and who else does this job
+
+### 8.8.8.8 does NOT have all the info
+
+`8.8.8.8` knows **almost nothing.**
+
+It's not a library. It's a **runner**. When the laptop asks it "what number is github.com?", it doesn't look the answer up in some giant list it owns — it goes and *fetches* the answer by walking the chain:
+
+```
+you ask 8.8.8.8  →  8.8.8.8 asks the root
+                 →  8.8.8.8 asks the .com computer
+                 →  8.8.8.8 asks GitHub's computer
+                 →  8.8.8.8 brings the answer back to you
+```
+
+The info lives at the **end** of the chain — on GitHub's own computer, updated by GitHub. `8.8.8.8` just does the legwork of asking around, so the laptop doesn't have to.
+
+It has exactly one skill — knowing how to walk the chain — plus the built-in addresses of the root computers, which is where every walk starts.
+
+### Why those digits?
+
+Nothing special. It's an ordinary IP address, exactly like `140.82.121.4` — four numbers, same format from Lesson 01. Google owned that particular address and put their runner service on it.
+
+They chose it for one human reason: **it's easy to remember and easy to type.** That matters for a service people configure by hand into routers and laptops. Same reason phone companies like numbers ending in 0000. There is no rule that runners live on repeating digits. It's marketing, not networking.
+
+### Who else does this job?
+
+Many, many computers. `8.8.8.8` is not *the* runner. It's *a* runner — one of thousands. Three kinds exist:
+
+**Your internet company's runner.** Every internet provider operates one for its customers. This is the default — when the router handed the laptop "who to ask" on day one, it most likely pointed at the provider's runner, not Google's. Most people use this their whole lives without knowing.
+
+**Big public runners.** A few companies run free ones open to everyone, on deliberately memorable addresses:
+
+```
+8.8.8.8   Google
+1.1.1.1   Cloudflare
+9.9.9.9   Quad9
+```
+
+Anyone can point their laptop at any of these instead of their provider's.
+
+**Private ones.** Companies run runners inside their own networks too — that becomes relevant in AWS and Kubernetes, where we will meet runners we control ourselves.
+
+And the crucial thing: **every one of them walks the same chain and gets the same answer.** Ask Google's runner, Cloudflare's, or your provider's what number `github.com` is — all three walk root → `.com` → GitHub's computer, and all three come back with whatever GitHub's computer says. The runners are interchangeable. The *answers* have a single source: the computer at the end of the chain, run by the name's owner.
+
+> **8.8.8.8 holds nothing; it fetches. The answer lives with the name's owner, and any runner in the world can go get it.**
+
+---
+
+## Remembering answers — caching
+
+You visit `github.com`. Chrome asks the runner, the runner walks the chain, the answer comes back. Fine.
+
+Thirty seconds later you click a link on GitHub. Another page from `github.com`. Does the whole chain get walked again? And again for the next click? One person alone would trigger dozens of walks per hour. Multiply by two billion people.
+
+The root computers would be answering the same question — "who handles `.com`?" — trillions of times a day. Almost every answer identical to the last one. Pure waste.
+
+So everything in this system does the obvious thing: **it remembers answers it already got.**
+
+The laptop remembers. The runner remembers. Once either of them has learned `github.com is 140.82.121.4`, the next question gets answered instantly from memory — no chain, no waiting:
+
+```
+First visit:    laptop → runner → root → .com → GitHub's computer   (full walk)
+Next visits:    laptop → its own memory                              (instant)
+```
+
+This remembering is called **caching**, and the stored answer is a **cache**. These words appear constantly in this field — they just mean "kept a copy to avoid asking again."
+
+---
+
+## The problem remembering creates
+
+Reason 2 from the start of this lesson: *the number changes; the name doesn't.* GitHub moves computers, updates its own answering computer, new number is live.
+
+Except — the laptop still has the **old** number memorised. So does the runner. So do millions of laptops and runners around the world. They're not going to ask again; that was the whole point of remembering. Everyone confidently uses a stale answer, and GitHub's new number never reaches them.
+
+Remembering solved the waste problem and created a staleness problem.
+
+---
+
+## The fix — TTL
+
+Every DNS answer carries one extra piece of information — **how long it may be remembered:**
+
+```
+github.com is 140.82.121.4 — you may remember this for 60 seconds
+```
+
+That number is called the **TTL** — *time to live*. When it runs out, the memorised answer is thrown away, and the next question triggers a fresh walk of the chain.
+
+The elegant part: **the name's owner sets it.** The TTL comes from GitHub's own computer, along with the answer. So GitHub controls the trade-off for its own name:
+
+- **Long TTL** (say, a day): the world barely ever re-asks. Fast and cheap — but if the number changes, some people stay stale for up to a day.
+- **Short TTL** (say, 60 seconds): the world re-asks constantly — more chain-walking, but a change spreads to everyone within a minute.
+
+**Real teams use this actively.** Planning to move an app to a new computer next Tuesday? Days before, drop the TTL to 60 seconds. The world's caches start refreshing every minute. Make the move — everyone follows within a minute. Then raise the TTL back up. This is a genuine DevOps move, and this is the machinery behind it.
+
+### Why "it works for me but not for him"
+
+This also explains a classic confusion in real work. A number changes. One colleague sees the new site; another sees the old one. Nobody is wrong — one laptop's memorised answer hasn't expired yet, the other's had. Wait out the TTL, or force the laptop to forget early (there's a command for that — it goes in the troubleshooting tools lesson), and they match again.
+
+---
+
+## The complete picture
+
+```
+1. Laptop joined WiFi        →  router handed it: your number + who to ask (8.8.8.8)
+2. You typed github.com      →  Chrome asks 8.8.8.8: "what number is github.com?"
+3. 8.8.8.8 walks the chain   →  root → .com → GitHub's computer → 140.82.121.4
+4. Answer returns            →  Chrome builds the envelope and asks for the page
+```
+
+And in four lines:
+
+```
+names exist because people can't remember numbers, and numbers change
+runners fetch answers by walking the chain: root → .com → the owner's computer
+everyone remembers answers to avoid re-walking
+every answer expires after its TTL, set by the owner
+```
+
+---
+
+## Questions raised in this lesson
+
+### How does "asking another computer" actually work?
+
+Answered in full above — the two halves are [which computer gets asked](#which-computer-does-the-laptop-ask) (the router hands over the runner's address on day one, alongside the laptop's own number) and [how that computer finds out](#how-the-answering-computer-finds-out--the-chain) (it walks the chain: root → `.com` → the owner's computer).
+
+### Why is it 8.8.8.8? Does it have all the info? Is it the only one?
+
+Answered in full above — [Why 8.8.8.8, and who else does this job](#why-8888-and-who-else-does-this-job). Short version: the digits are marketing, not networking; it holds almost nothing and fetches everything; and it is one runner among thousands of interchangeable ones, all of which walk the same chain to the same single source of truth.
+
+---
+
+## Follow-up questions: who owns names, endings, and the whole system
+
+These questions came after the lesson was first closed. Recorded here in full, in the order asked.
+
+---
+
+### First, the right word: extension = TLD
+
+The ending of a name — `.com`, `.in`, `.org` — is officially called a **TLD** (top-level domain). "Top-level" because it is the top of the chain: the root's referrals point at TLD computers.
+
+---
+
+### Who owns domain names and endings?
+
+Ownership follows the exact same three levels as the resolution chain: **root → `.com` computer → GitHub's computer.**
+
+**The top: ICANN.** The root is overseen by an organisation called **ICANN** — same species as IANA and the IETF from earlier lessons: a non-profit, owned by nobody, controlled by no government. (IANA, from Lesson 01, operates as part of ICANN — the address pool and the name system are stewarded under the same roof.) ICANN's job at this level is one thing: deciding **which TLDs exist at all**. A TLD exists only if ICANN has put it into the root.
+
+**The middle: one company per TLD.** Each TLD's computer — the one that answered "ask GitHub's own computer" in the chain — is operated by a single organisation called the **registry** for that TLD. ICANN contracts each TLD out to exactly one registry. For `.com`, that is a company called Verisign. The registry keeps the master list: every registered `.com` name and who speaks for it.
+
+**The bottom: you.** And a truth that surprises everyone: **nobody owns a domain name.** Not even github.com is *owned* by GitHub. Names are **rented**, yearly. GitHub pays every year to keep `github.com` on Verisign's list. Stop paying, and the name eventually goes back into the pool for anyone to take. It is a lease, permanently renewable, never a purchase.
+
+---
+
+### Where does GoDaddy fit? Why can it sell domains?
+
+GoDaddy owns nothing in this chain. It is a **retailer**.
+
+The registry (Verisign) keeps the master list but does not deal with the public. Instead, ICANN accredits companies — called **registrars** — to sell entries in that list on the registry's behalf. GoDaddy, Namecheap, and hundreds of others are registrars.
+
+"Buying" `myapp.com` on GoDaddy for $12/year actually flows like this:
+
+```
+you pay GoDaddy ~$12/year
+   → GoDaddy pays Verisign ~$10 (the wholesale price of a .com entry)
+      → Verisign pays ICANN a small fee ($0.18 per name per year)
+         → Verisign adds one line to the .com master list:
+           "myapp.com → speaks-for computer is at X"
+```
+
+GoDaddy's business is the retail margin plus the customer-facing work: the website, the payment, the support. The actual record lives with Verisign. This is why a name can be moved *from* GoDaddy *to* Namecheap without losing it — registrars are interchangeable shopfronts over the same master list. Exactly like the DNS runners: many doors, one source of truth.
+
+The full ownership stack:
+
+```
+ICANN       decides which TLDs exist            (the root level)
+registry    runs one TLD's master list          (Verisign for .com)
+registrar   sells entries to the public         (GoDaddy, Namecheap...)
+you         rent one name, per year             (myapp.com)
+```
+
+---
+
+### Can I create my own TLD?
+
+Yes. Genuinely.
+
+ICANN does not invent TLDs itself — it opens **application rounds** where anyone qualified can propose one. The last round was in 2012, and it created over 1,200 new TLDs — brand ones like `.google` and `.bmw`, city ones like `.nyc` and `.london`, industry ones like `.shop` and `.finance`. Those odd endings exist because companies applied for them.
+
+What it takes (2026 round):
+
+- The application fee alone is **USD 227,000** — a non-refundable evaluation cost, not a purchase price
+- Proof of technical and financial capability to run the TLD's computer (the registry role) — or hiring an approved provider to run it
+- Background checks, public objection periods, and if two applicants want the same string, an ICANN-run auction
+- Winning means signing an ongoing contract with ICANN, with yearly fees — the winner *becomes the registry* for that TLD
+
+Timing at the moment this was asked: the current application window — the first since 2012 — opened on 30 April 2026 and closes on **12 August 2026**, one week after this conversation. There is no announced date for the next round.
+
+Realistically, TLD creation is for corporations and governments. But the mechanism matters more than the price tag: the system is genuinely open. The root is not a fixed list from the 1980s; it is an administered, expandable registry, and `.com` has no special magic over `.pizza` except age and habit.
+
+---
+
+### Why does ICANN take the money? Why so expensive?
+
+**Why money at all:** evaluating an application costs real work. When someone applies for `.pizza`, ICANN pays panels of people to verify the applicant's finances (can they run this for years without collapsing?), verify the technical setup (can their computer answer the world's questions reliably?), run background checks on the people behind it, handle objections ("that's our trademark!"), disputes, and auctions — all legally watertight, because rejected applicants sue. The fee pays those people. ICANN's stated rule: the fee is designed to fully cover the costs of the application round, so the program is cost-neutral — no profit, no loss.
+
+**Why THIS expensive:** two reasons stacked.
+
+1. **The evaluation genuinely costs that much** — months of specialist panels per application, multiplied by legal defensibility.
+2. **The price is also a filter, and that is deliberate.** A TLD lives in the root, and the root must stay clean and stable — it is the level every DNS question in the world starts from. If applying cost $50, a million people would apply for joke TLDs, squatters would grab every word in the dictionary to resell, and the evaluation system would drown. At $227,000, only applicants who seriously intend to *operate* a TLD for decades show up. Expensive is part of the design.
+
+---
+
+### What does "top of the chain" mean?
+
+The chain from this lesson, drawn as levels:
+
+```
+LEVEL 1  the root            "for .com, ask over there"        ← the top
+LEVEL 2  the .com computer   "for github.com, ask over there"
+LEVEL 3  GitHub's computer   "github.com is 140.82.121.4"      ← the bottom
+```
+
+"Top" means level 1 — the place every fresh walk starts. Every question about any name in the world begins by asking the root. Everything else hangs below it. A TLD is called "top-level" because it is the level the root hands out referrals for.
+
+---
+
+### What does the root actually look like?
+
+The root is **a text file.**
+
+Not a metaphor. An actual plain text file, called the **root zone file**, maintained by IANA. It is public and downloadable by anyone:
+
+```
+https://www.internic.net/domain/root.zone
+```
+
+It contains thousands of lines. Simplified, they say:
+
+```
+com.      →  ask the computers run by Verisign, at these addresses
+in.       →  ask the computers run by India's registry, at these addresses
+pizza.    →  ask the computers run by .pizza's registry, at these addresses
+```
+
+One line-group per TLD: the ending, and the addresses of the computers that answer for it. That is the entire top of the naming world. When ICANN "adds a TLD to the root," a person at IANA literally edits this file and publishes a new version. The file has a serial number that ticks up with each edit.
+
+---
+
+### How does the root file reach the public? How do registrars "get" TLDs?
+
+Two separate mechanisms:
+
+**The file reaches the world through the root computers.** The root computers — whose addresses are built into every runner — each hold a copy of that text file and answer questions from it. When IANA publishes a new version, all the root computers pull the update, typically live worldwide within hours. That is the entire distribution: one file, copied to a set of computers that every runner on Earth knows how to ask.
+
+**Registrars don't "get" TLDs at all.** A registrar never possesses a TLD — the registry does. What a registrar gets is a **contract**: an agreement with a registry (say, Verisign for `.com`) granting it permission to add, renew and delete entries in that registry's master list, on behalf of paying customers. GoDaddy holds such contracts with many registries, which is why it can sell `.com`, `.in` and `.pizza` names alike. The registrar is a shopfront with write-access to someone else's list. Nothing more.
+
+---
+
+### How do we know if something is a TLD or not?
+
+**It is a TLD if it has a line in the root file.** No line, not a TLD, and no name ending in it can exist.
+
+For humans, IANA publishes the same information as a browsable list:
+
+```
+https://www.iana.org/domains/root/db
+```
+
+Every TLD in existence — about 1,400 today — with who runs each. `.pizza` is there. `.google` is there. `.notarealtld` is not, so `myapp.notarealtld` cannot exist anywhere: the root would answer "no such ending" and every chain-walk would die at step 1.
+
+---
+
+### What does Verisign's master list look like?
+
+The same thing, one level down: **another text file**, just enormously bigger.
+
+The root file has ~1,400 entries — one per TLD. Verisign's `.com` file has about **160 million** entries — one per registered `.com` name. Same shape of line:
+
+```
+github.com.    →  ask GitHub's computers, at these addresses
+myapp.com.     →  ask (wherever myapp's owner pointed it)
+...160 million more...
+```
+
+Each line: a name, and who speaks for it. Renting `myapp.com` through GoDaddy means GoDaddy's system telling Verisign's system to append that line. Stop paying, and the line is eventually removed. The "master list" is that literal.
+
+The whole naming system, top to bottom, is text files pointing at other text files, copied onto computers that answer questions from them.
+
+---
+
+### How does the availability check work?
+
+Typing `myapp.com` into GoDaddy's search box and seeing "available!" or "taken" is exactly what you would now guess:
+
+```
+you type myapp.com into GoDaddy
+   → GoDaddy asks Verisign's system: "is there a line for myapp.com?"
+      → Verisign checks the list
+   ← "no line exists"
+← GoDaddy shows you: "available!"
+```
+
+One question, one lookup, one answer. Registrars have a direct connection to each registry's system for exactly this — the same connection used to write the line in when someone pays. (The question-and-answer format between them has a name, **EPP** — file it away; it never needs touching directly.)
+
+The part worth keeping is the *authority*: GoDaddy does not decide availability, and neither does any registrar. They all ask the same list. That is why the answer is identical on GoDaddy, Namecheap, or anywhere else — one file, many shopfronts.
+
+When payment happens, the line gets written into the list **at that moment**, and every later availability check by anyone on Earth finds it. First to write the line wins the name.
+
+---
+
+### What happens if I miss my renewal date?
+
+The key is a mechanism nobody tells domain owners about:
+
+**On the expiry date, Verisign automatically renews the line anyway** — and charges the registrar the wholesale fee. The registrar then has a window of up to **45 days** to either keep the renewal (if the customer finally pays) or cancel it and take a refund from Verisign (if not).
+
+That registry-level window creates the buffer. The lifecycle of an unpaid `.com` (expiry date as day 0):
+
+```
+day 0         expiry — Verisign auto-renews, the registrar is now deciding
+days 0–~30    GRACE PERIOD: renew at the normal price
+              (exact length is each registrar's policy — GoDaddy is
+               currently around 30 days; the site usually stops working
+               after a few days, but the name is still yours)
+~day 30–60    REDEMPTION: the registrar cancelled with Verisign; the name
+              enters a 30-day recovery state. Recovery is STILL possible —
+              but with a hefty fee ($80+) on top of the renewal
+last 5 days   PENDING DELETE: locked, nobody can touch it
+after that    the line is removed — the name is publicly available again
+```
+
+**How does the registrar "decide" to remove the line?** It does nothing active — it just *stops paying*. Cancelling the auto-renewal within Verisign's 45-day window is what starts the deletion clock. The removal is the consequence of the registrar taking its refund.
+
+**How much buffer?** Roughly 30 days at normal price, then ~30 more at ransom price, then ~5 days locked — about 65–75 days total between expiry and true release. But the grace period at normal price is **registrar policy, not a law**; it varies and can change.
+
+**Does the registrar pay by itself if the customer doesn't renew?** Technically Verisign auto-renewed on day one — but the registrar will *undo* that renewal and take the refund rather than absorb the cost. No registrar pays to keep a name alive out of kindness. Worse: for names with traffic, registrars may auction them to third parties during the redemption phase. Expired names with visitors are a resale market.
+
+**The habit to take from this:** the buffer exists to save you from accidents, not to be a payment plan. Real teams put domain renewal on auto-pay, because the failure mode — losing a name to a squatter who wants $5,000 for it back — is not recoverable by any technical means. The name system has no "but it was mine" appeal process. The line either exists or it doesn't.
+
+---
+
+### Country endings: .in, .np — and why .com.np instead of .np
+
+Country endings are just TLDs with one special rule about *who* gets them.
+
+Early in the internet's history, a decision was made: every country gets a two-letter ending, taken from an already-existing international standard list of country codes — the same list that gives IN for India, NP for Nepal, JP for Japan on currency codes and vehicle stickers. ICANN does not invent these codes; it inherits them from that list. Country on the list → entitled to a TLD.
+
+The delegation then works like everything else: ICANN puts the line in the root, pointing at a registry — but for a country code, the registry is an organisation **in or approved by that country.** Each country then runs its ending by its own rules: its own prices, its own eligibility requirements, its own structure. ICANN hands over the ending and steps back.
+
+**Why `.com.np` and not just `.np`?** Because that is Nepal's registry exercising exactly that freedom. Nepal organised its space with categories *underneath* its TLD:
+
+```
+.com.np   for companies
+.edu.np   for schools
+.gov.np   for government offices
+.org.np   for organisations
+```
+
+Nepal's registry runs its master list one level deeper — registration happens at `myshop.com.np`, not `myshop.np`. India offers both styles: plain `.in` and categorised `.co.in`. The UK did categories for decades (`.co.uk`) and later opened plain `.uk` too. Same machinery, per-country choices — the chain from this lesson with one extra link:
+
+```
+root → .np computer → .com.np level → myshop's computer
+```
+
+---
+
+### Who maintains .com.np, and why was mine free?
+
+**Who:** the `.np` registry is administered by **Mercantile Communication Pvt Ltd** — a private Kathmandu company that has held the delegation since `.np` was created in 1995. In the chain:
+
+```
+root  →  .np computers (Mercantile's)  →  bishwas54.com.np's line
+```
+
+Mercantile plays the **registry** role — the same role Verisign plays for `.com`. And `register.com.np` is not a separate registrar like GoDaddy — it is Mercantile's own front door. Nepal skips the registrar layer entirely: **registration happens directly with the registry.** No middlemen, no retail markup, one organisation doing both jobs.
+
+**Why free:** a policy choice by the registry — and Nepal is genuinely unusual: almost no other country TLD is completely free with free renewal indefinitely. Mercantile runs registration as a public service to get Nepali people and businesses online, covering the cost from its other business (it is an internet provider).
+
+Every registry sets its own rules for writing lines into its list. Verisign's rule: *anyone, ~$10 wholesale.* Mercantile's rule: *free — but prove you belong here.* That second clause is why free is sustainable. For `.com`, money itself is the anti-abuse filter — no human review needed. Remove the money and a different filter is needed, which is exactly the .np experience: proof of Nepali citizenship for personal domains, or company registration papers for organisations — reviewed by an actual human, which is why approval takes days, not seconds. The citizenship document does the job the $12 would have done at GoDaddy.
+
+Two consequences of Nepal's model:
+
+- `.np` names are registered first-come-first-served, **for lifetime — there is no expiration date.** The entire expiry lifecycle above (grace periods, redemption ransoms, auction vultures) does not apply. A `.com.np` name has no renewal date to miss.
+- The eligibility check quietly *protects* the space: a squatter in another country cannot hoard thousands of Nepali names for resale, because each registration needs Nepali documents. The doorman is the anti-squatting mechanism.
+
+---
+
+### .gov and .edu
+
+These two feel like categories, but they are actually **history**. They are among the very first TLDs ever created — 1985, before the internet was global, when it was essentially an American research network. And they carry a surprise:
+
+**`.gov` is US-government-only.** Not governments of the world — the United States government specifically. The registry is operated by a US federal agency, and eligibility is strict: only US federal, state, or local government bodies. Other countries' governments live under their country codes — India's uses `.gov.in`, Nepal's uses `.gov.np`. The bare `.gov` was never internationalised; it predates the idea that it would need to be.
+
+**`.edu` is US-accredited-institutions-only.** Same story: the registry is a US nonprofit, and eligibility requires formal US higher-education accreditation. Oxford — one of the oldest universities on Earth — cannot have `oxford.edu`; it is `ox.ac.uk`, under the UK's academic category. Every country's universities live under their own code; the bare `.edu` is American by historical accident.
+
+The pattern for restricted endings is nothing exotic: every registry sets rules for its own list, and the only difference is how hard the check is.
+
+| Ending | Registry's rule for writing your line |
+|---|---|
+| `.com` | anyone, ~$12/year |
+| `.in` | anyone, under India's registry's terms |
+| `.com.np` | Nepali citizens and companies, free, documents required |
+| `.gov` | US government bodies only |
+| `.edu` | accredited US universities only |
+| `.google` | Google only — a brand TLD where the registry's rule is "just us" |
+
+Same files, same lines, same chain. Only the doorman changes.
+
+---
+
+### New terms from this section
+
+- **TLD (top-level domain)** — the official word for an ending: `.com`, `.np`, `.pizza`
+- **ICANN** — the non-profit overseeing which TLDs exist; IANA operates as part of it
+- **registry** — the one organisation running a TLD's master list (Verisign for `.com`, Mercantile for `.np`)
+- **registrar** — a retailer with a contract to write lines into registries' lists (GoDaddy, Namecheap)
+- **root zone file** — the actual text file at the top of the naming world, one entry per TLD, publicly downloadable
+- **renting, not owning** — names are yearly leases; the "owner" is whoever keeps paying
+- **grace period / redemption / pending delete** — the three stages between missing a renewal and the name becoming public again
+- **ccTLD (country-code TLD)** — a two-letter country ending like `.in` or `.np`, delegated to a registry in that country
+- **EPP** — the wire format registrars and registries use to talk; never touched directly
+
+### Sources for this section
+
+| Claim | Source | Link |
+|---|---|---|
+| ICANN's role, TLD application rounds | ICANN New gTLD Program, 2026 round | https://newgtldprogram.icann.org/en/application-rounds/round2 |
+| $227,000 evaluation fee, cost-neutral principle | ICANN fee FAQ | https://newgtldprogram.icann.org/en/application-rounds/round2/2026-round-general/gtld-evaluation-fee/faqs |
+| 2026 window dates (30 Apr – 12 Aug 2026) | ICANN 2026 Round page | https://newgtldprogram.icann.org/en/application-rounds/round2 |
+| 2012 round created 1,200+ TLDs | CentralNic Registry overview | https://centralnicregistry.com/icann-new-gtld-program/ |
+| The root zone file itself | InterNIC (IANA) | https://www.internic.net/domain/root.zone |
+| Browsable list of all TLDs and their registries | IANA Root Zone Database | https://www.iana.org/domains/root/db |
+| Verisign runs .com; registrar/registry model | Verisign | https://www.verisign.com/en_US/domain-names/com-domain-names/index.xhtml |
+| ICANN fee per .com name per year | ICANN registry agreements | https://www.icann.org/resources/pages/registries/registries-agreements-en |
+| Expired domain lifecycle (grace, redemption, pending delete) | ICANN — EPP status codes & expired domains | https://www.icann.org/resources/pages/epp-status-codes-2014-06-16-en |
+| Registrar expiry/renewal obligations | ICANN Expired Registration Recovery Policy | https://www.icann.org/resources/pages/errp-2013-02-28-en |
+| .np run by Mercantile, free, citizenship documents, lifetime | Wikipedia — .np (cites registry policy) | https://en.wikipedia.org/wiki/.np |
+| .np official registration portal | register.com.np | https://register.com.np/ |
+| Country codes come from the ISO 3166 standard list | ISO 3166 | https://www.iso.org/iso-3166-country-codes.html |
+| .gov eligibility (US government only) | US government — get.gov | https://get.gov/domains/eligibility/ |
+| .edu eligibility (accredited US institutions) | EDUCAUSE .edu policy | https://net.educause.edu/eligibility.htm |
+
+---
+
+## Easy to get wrong
+
+**The runner is not the source of truth.** The answer lives on the name owner's computer, at the end of the chain. Runners fetch and remember; they never decide.
+
+**Every website visit is two conversations, not one.** The DNS question happens first, invisibly, before the page is ever requested. When "the internet is down," sometimes only conversation 1 is broken — names stop resolving while direct numbers still work. Recognising which conversation failed is a real debugging skill.
+
+**Caching means changes are not instant.** Updating where a name points does not update the world. Every cache holding the old answer keeps serving it until its TTL runs out. "I changed it, why does everyone still see the old one" — TTL, almost every time.
+
+**Two people can get different answers and both be right.** Different caches, different expiry moments. Not a bug — a direct consequence of the design.
+
+**The chain is for fresh questions only.** Most real questions never reach the root — they're answered from a cache somewhere. The full walk happens only when nobody in the path remembers.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| Typing a website name | The name just works, somehow | A hidden first conversation converts it to a number before anything else happens |
+| DNS | A vague "phonebook of the internet" | A chain of delegation: root → `.com` → the owner's computer, walked by runners |
+| 8.8.8.8 | A magic number that knows everything | An ordinary IP with a memorable pattern, holding nothing, fetching everything |
+| Who controls a name's answer | Some central internet authority | The name's owner, on their own computer, editable at will |
+| DNS changes | Instant | Spread at the speed of expiring caches, controlled by the TTL the owner set |
+| "Works for me, not for him" | Confusing, someone must be wrong | Both right — different caches, different expiry times |
+
+---
+
+## Terms locked in
+
+- **DNS** — the system that turns names into numbers
+- **runner (resolver)** — a computer that fetches DNS answers by walking the chain on your behalf; the official word is *resolver*
+- **root** — the small set of computers at the top of the naming world, addresses built into every runner
+- **referral** — an answer that says "I don't know, but ask them"
+- **the owner's computer (authoritative server)** — the computer where a name's real answer lives, run by whoever owns the name; the official word is *authoritative*
+- **port 53** — where DNS answering programs listen, everywhere
+- **caching** — remembering an answer to avoid asking again
+- **cache** — the remembered copy itself
+- **TTL (time to live)** — how long an answer may be remembered, set by the name's owner
+- **stale** — a cached answer that no longer matches the current truth
+
+---
+
+## Deliberately not covered yet
+
+- **DHCP** — the router "handing things over" on day one has a name and a mechanism; next lesson
+- **The command to force a laptop to forget a cached answer** — troubleshooting tools lesson
+- **Record types** — DNS can answer more question-shapes than "what number is this name"; introduced when first needed
+- **DNS inside Kubernetes and AWS** — private runners we control; Parts 2 and 4
+- **What the DNS message looks like on the wire, and why it behaves differently from a page request** — needs TCP vs UDP first, lesson 10
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| DNS concepts, original specification | RFC 1034 | https://www.rfc-editor.org/rfc/rfc1034.html |
+| DNS implementation details, TTL | RFC 1035 | https://www.rfc-editor.org/rfc/rfc1035.html |
+| The root servers, run by twelve organisations | IANA root servers page | https://www.iana.org/domains/root/servers |
+| Google's public runner | Google Public DNS documentation | https://developers.google.com/speed/public-dns/docs/intro |
+| Cloudflare's public runner | Cloudflare 1.1.1.1 documentation | https://developers.cloudflare.com/1.1.1.1/ |
+| Readable overview of the full resolution chain | Cloudflare Learning — What is DNS? | https://www.cloudflare.com/learning/dns/what-is-dns/ |
+
+> **Source note:** RFC 1034 and 1035 are the original 1987 specifications and remain the authoritative base, extended by many later RFCs. The Cloudflare learning page is a readable secondary source that matches the chain as taught here.
+
+---
+
+*End of Lesson 04. Next: DHCP — the router "handing things over" finally gets its real name.*
+
+## Check what stuck
+
+<Quiz>
+  <QuizQuestion
+    question="What is the entire job of DNS?"
+    options={[
+      'To carry the request to the right machine',
+      'To turn a name into a number',
+      'To decide which program receives a request',
+    ]}
+    answer={1}
+  >
+    Name goes in, number comes out. Nothing else. Junctions navigate by
+    numbers only, so this conversion has to happen before Chrome can build
+    the envelope.
+  </QuizQuestion>
+  <QuizQuestion
+    question="Does 8.8.8.8 hold the answers to the world's DNS questions?"
+    options={[
+      'Yes — it keeps a giant list of every name and number',
+      'No — it is a runner that fetches answers by walking the chain',
+      'Only for names ending in .com',
+    ]}
+    answer={1}
+  >
+    It knows almost nothing. The real answer lives at the end of the chain,
+    on the name owner's own computer. The runner just does the legwork of
+    asking root, then .com, then the owner — and any runner in the world
+    gets the same answer.
+  </QuizQuestion>
+  <QuizQuestion
+    question="What is a TTL?"
+    options={[
+      'How long an answer may be remembered, set by the name owner',
+      'The maximum time a request may spend travelling',
+      'The number of junctions a message may pass through',
+    ]}
+    answer={0}
+  >
+    Caching created a staleness problem, and TTL is the fix: every answer
+    expires, and the owner controls the trade-off — long TTL means fewer
+    re-asks, short TTL means changes spread within minutes.
+  </QuizQuestion>
+  <QuizQuestion
+    question="Who owns github.com?"
+    options={[
+      'GitHub owns it permanently, like property',
+      'Verisign owns it and licenses it to GitHub',
+      'Nobody — names are rented yearly, and GitHub keeps paying',
+    ]}
+    answer={2}
+  >
+    Nobody owns a domain name. It is a lease, permanently renewable, never a
+    purchase. Stop paying, and after the grace, redemption, and pending
+    delete stages the name goes back into the pool for anyone to take.
+  </QuizQuestion>
+</Quiz>
