@@ -6,4 +6,8 @@
     "directory": "./dist",
     "not_found_handling": "404-page",
   },
+  "routes": [
+    { "pattern": "bishwas54.com.np", "custom_domain": true },
+    { "pattern": "www.bishwas54.com.np", "custom_domain": true },
+  ],
 }
