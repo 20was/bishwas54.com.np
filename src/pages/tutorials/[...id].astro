@@ -4,6 +4,7 @@ import Article from '../../layouts/Article.astro';
 import TableOfContents from '../../components/TableOfContents.astro';
 import { readingMinutes } from '../../lib/reading-time';
 import { relatedPosts } from '../../lib/related';
+import { articleJsonLd, breadcrumbJsonLd } from '../../lib/jsonld';
 
 export async function getStaticPaths() {
   const tutorials = await getCollection('tutorials', ({ data }) => !data.draft);
@@ -24,6 +25,25 @@ const minutes = readingMinutes(entry.body ?? '');
 const twoYears = 1000 * 60 * 60 * 24 * 730;
 const lastTouch = entry.data.dateUpdated ?? entry.data.datePublished;
 const stale = Date.now() - lastTouch.getTime() > twoYears;
+
+const path = `/tutorials/${entry.id}/`;
+const ogImage = `/og/tutorials/${entry.id}.png`;
+const jsonLd = [
+  articleJsonLd({
+    title: entry.data.title,
+    description: entry.data.description,
+    path,
+    datePublished: entry.data.datePublished,
+    dateUpdated: entry.data.dateUpdated,
+    tags: entry.data.tags,
+    image: ogImage,
+  }),
+  breadcrumbJsonLd([
+    { name: 'Home', path: '/' },
+    { name: 'Tutorials', path: '/tutorials/' },
+    { name: entry.data.title, path },
+  ]),
+];
 ---
 
 <Article
@@ -32,6 +52,8 @@ const stale = Date.now() - lastTouch.getTime() > twoYears;
   datePublished={entry.data.datePublished}
   dateUpdated={entry.data.dateUpdated}
   readingMinutes={minutes}
+  ogImage={ogImage}
+  jsonLd={jsonLd}
 >
   <Fragment slot="margin">
     <p class="meta level">{entry.data.level}</p>

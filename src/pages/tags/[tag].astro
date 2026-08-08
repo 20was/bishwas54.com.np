@@ -1,0 +1,115 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+
+export async function getStaticPaths() {
+  const tutorials = await getCollection('tutorials', ({ data }) => !data.draft);
+  const notes = await getCollection('notes', ({ data }) => !data.draft);
+
+  const posts = [
+    ...tutorials.map((e) => ({
+      title: e.data.title,
+      description: e.data.description,
+      date: e.data.datePublished,
+      tags: e.data.tags,
+      href: `/tutorials/${e.id}/`,
+      kind: 'Tutorial',
+    })),
+    ...notes.map((e) => ({
+      title: e.data.title,
+      description: e.data.description,
+      date: e.data.datePublished,
+      tags: e.data.tags,
+      href: `/notes/${e.id}/`,
+      kind: 'Note',
+    })),
+  ];
+
+  const tags = [...new Set(posts.flatMap((p) => p.tags))].sort();
+  return tags.map((tag) => ({
+    params: { tag },
+    props: {
+      posts: posts
+        .filter((p) => p.tags.includes(tag))
+        .sort((a, b) => b.date.getTime() - a.date.getTime()),
+    },
+  }));
+}
+
+const { tag } = Astro.params;
+const { posts } = Astro.props;
+
+const fmt = (d: Date) =>
+  d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+---
+
+<Base
+  title={`Tagged “${tag}” — Bishwas Adhikari`}
+  description={`Everything on the site tagged ${tag}.`}
+>
+  <div class="listing">
+    <h1>Tagged “{tag}”</h1>
+    <ul class="posts">
+      {
+        posts.map((post) => (
+          <li>
+            <p class="meta">
+              {post.kind} ·{' '}
+              <time datetime={post.date.toISOString().slice(0, 10)}>
+                {fmt(post.date)}
+              </time>
+            </p>
+            <a href={post.href}>{post.title}</a>
+            <p class="description">{post.description}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</Base>
+
+<style>
+  .listing {
+    max-width: var(--measure);
+  }
+
+  h1 {
+    font-size: var(--step-3);
+  }
+
+  .posts {
+    list-style: none;
+    margin: var(--space-5) 0 0;
+    padding: 0;
+  }
+
+  .posts li + li {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--line);
+  }
+
+  .posts a {
+    font-size: var(--step-1);
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .posts a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+
+  .description {
+    margin-top: var(--space-1);
+    color: var(--text-soft);
+  }
+
+  .posts .meta {
+    margin-bottom: var(--space-1);
+  }
+</style>

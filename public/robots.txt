@@ -1,0 +1,26 @@
+# bishwas54.com.np — everything public is indexable.
+# AI crawlers are explicitly welcome: being read (and cited) by AI
+# search engines is part of why this site exists.
+
+User-agent: *
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+Sitemap: https://bishwas54.com.np/sitemap-index.xml

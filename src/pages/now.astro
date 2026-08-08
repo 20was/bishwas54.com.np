@@ -1,0 +1,32 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base
+  title="Now — Bishwas Adhikari"
+  description="What I'm learning and building right now."
+>
+  <div class="now prose" data-pagefind-body>
+    <h1>Now</h1>
+    <p class="meta">Updated Aug 2026</p>
+    <p>
+      Right now I'm building this site itself — in the open, with the help of AI
+      tooling that I review line by line. The first tutorials are landing; Git
+      basics came first because it's the tool everything else stands on.
+    </p>
+    <p>
+      This page changes as my focus does. If it looks stale, the archive is the
+      truer record.
+    </p>
+  </div>
+</Base>
+
+<style>
+  .now h1 {
+    font-size: var(--step-3);
+  }
+
+  .now .meta {
+    margin: var(--space-2) 0 var(--space-4);
+  }
+</style>

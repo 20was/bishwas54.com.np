@@ -8,6 +8,8 @@ interface Props {
   dateUpdated?: Date | undefined;
   readingMinutes?: number | undefined;
   noindex?: boolean;
+  ogImage?: string | undefined;
+  jsonLd?: object[];
 }
 
 const {
@@ -17,6 +19,8 @@ const {
   dateUpdated,
   readingMinutes,
   noindex = false,
+  ogImage,
+  jsonLd = [],
 } = Astro.props;
 
 const fmt = (d: Date) =>
@@ -27,7 +31,14 @@ const fmt = (d: Date) =>
   });
 ---
 
-<Base title={title} description={description} noindex={noindex}>
+<Base
+  title={title}
+  description={description}
+  noindex={noindex}
+  ogType="article"
+  ogImage={ogImage}
+  jsonLd={jsonLd}
+>
   <article class="article">
     {
       /* The notebook margin: metadata lives beside the prose on wide screens,
@@ -63,7 +74,7 @@ const fmt = (d: Date) =>
         <h1>{title}</h1>
         <p class="lede">{description}</p>
       </header>
-      <div class="prose">
+      <div class="prose" data-pagefind-body={noindex ? undefined : true}>
         <slot />
       </div>
     </div>

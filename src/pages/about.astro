@@ -1,0 +1,48 @@
+---
+import Base from '../layouts/Base.astro';
+import { profilePageJsonLd } from '../lib/jsonld';
+---
+
+<Base
+  title="About — Bishwas Adhikari"
+  description="Who writes this site, and why it exists."
+  jsonLd={[profilePageJsonLd()]}
+>
+  <div class="about prose" data-pagefind-body>
+    <h1>About</h1>
+    <p>
+      I'm <strong>Bishwas Adhikari</strong> — a software and platform engineer. Colleagues
+      in Australia call me Bish; family and friends call me Bishu. Answer to all three.
+    </p>
+    <p>
+      This site is my public notebook. When I learn something — a tool, a
+      concept, a hard-won lesson, technical or not — I write it up the way I
+      wish someone had explained it to me: from zero, in plain words, with
+      nothing assumed. Then I revisit and revise as I understand things better.
+    </p>
+    <p>
+      Every tutorial ends with a small quiz. Not for grades — just a quick way
+      to feel what stuck before you move on.
+    </p>
+    <h2>What this site is not</h2>
+    <p>
+      Not a portfolio, not a brand, not a funnel. No newsletter popups, no
+      cookies, no analytics, no ads. Just writing.
+    </p>
+    <h2>Elsewhere</h2>
+    <p>
+      The site itself is open source at{' '}
+      <a href="https://github.com/20was/bishwas54.com.np">
+        github.com/20was/bishwas54.com.np
+      </a>
+      — built with Astro, deployed on Cloudflare.
+    </p>
+  </div>
+</Base>
+
+<style>
+  .about h1 {
+    font-size: var(--step-3);
+    margin-bottom: var(--space-4);
+  }
+</style>

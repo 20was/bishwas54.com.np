@@ -1,0 +1,57 @@
+---
+import Search from 'astro-pagefind/components/Search.astro';
+import Base from '../layouts/Base.astro';
+---
+
+<Base
+  title="Search — Bishwas Adhikari"
+  description="Search every tutorial and note on the site."
+>
+  <div class="search-page">
+    <h1>Search</h1>
+    <p class="lede">Every tutorial and note, searched as you type.</p>
+    <Search
+      id="search"
+      className="pagefind-ui"
+      uiOptions={{ showImages: false }}
+    />
+  </div>
+</Base>
+
+<style is:global>
+  .search-page {
+    max-width: var(--measure);
+  }
+
+  .search-page h1 {
+    font-size: var(--step-3);
+  }
+
+  .search-page .lede {
+    margin-top: var(--space-3);
+    font-size: var(--step-1);
+    color: var(--text-soft);
+  }
+
+  .pagefind-ui {
+    margin-top: var(--space-4);
+    --pagefind-ui-scale: 0.9;
+    --pagefind-ui-primary: var(--accent);
+    --pagefind-ui-text: var(--text);
+    --pagefind-ui-background: var(--bg);
+    --pagefind-ui-border: var(--line);
+    --pagefind-ui-tag: var(--bg-raised);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: 6px;
+    --pagefind-ui-font: var(--font-sans);
+  }
+
+  .pagefind-ui .pagefind-ui__result-title {
+    font-family: var(--font-serif);
+  }
+
+  .pagefind-ui mark {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+</style>
