@@ -21,6 +21,36 @@ I learned". From that:
 3. Publish only on his explicit OK (see checklist). Delete the processed
    inbox file in the same commit.
 
+## VERBATIM rule (owner requirement — overrides everything)
+
+Bishwas's notes are published **word-for-word**. Never condense, rewrite,
+"improve", or reflow his text. Conversion is mechanical:
+
+1. Body = source file byte-for-byte, minus ONLY the top `# h1` line
+   (which becomes the frontmatter title). Assemble by script, never retype.
+2. Append `## Check what stuck` + `<Quiz>` (tutorials only) after his text.
+3. The one-sentence frontmatter `description` is the only text you write.
+4. Verify byte-identical: strip frontmatter/imports/quiz from the MDX,
+   diff against the source minus h1 — must match exactly.
+5. `src/content/` is in `.prettierignore` — keep it there.
+
+## Series conversion (his study lab → site)
+
+Study lab: `/Users/bishwas/Desktop/Self-Learn-Docs/networking-lab/`
+(sections: 01-foundations, 02-aws, 03-docker, 04-kubernetes, 05-proxies,
+06-traffic-flow). When he says "convert the new lessons":
+
+- **Check file size first — 0-byte files are unwritten stubs; skip them,
+  never invent content for them.** (As of 2026-08-08: foundations 01–06
+  published, 07–14 empty.)
+- Slug = filename minus the `NN-` prefix. Series order = the `NN` number.
+- Series name so far: `'DevOps Networking'` (foundations). Ask before
+  starting a new series name for other sections.
+- Batchable: parallel agents fine (disjoint files), but the main session
+  re-verifies every file byte-identical before deploy.
+- MDX safety scan per source: literal `{` or raw `<`+letter in prose
+  breaks MDX — report, don't silently edit.
+
 ## Decide type
 
 - **Tutorial** (`src/content/tutorials/<slug>.mdx`): teachable topic, step-by-step, ends with a quiz. Level: beginner unless told otherwise.
