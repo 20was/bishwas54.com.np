@@ -14,7 +14,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "deploy": "astro build && wrangler deploy",
+    "deploy": "npm run build && wrangler deploy && node scripts/indexnow.mjs",
     "test": "vitest run"
   },
   "dependencies": {
