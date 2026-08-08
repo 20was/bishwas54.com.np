@@ -16,6 +16,22 @@
   font-display: swap;
 }
 
+/* Cross-document view transitions — pure CSS, progressive enhancement.
+   Browsers honor prefers-reduced-motion for these automatically. */
+@view-transition {
+  navigation: auto;
+}
+
+/* Metric-adjusted local fallback shown while Literata loads — shrinks
+   the font-swap layout shift. */
+@font-face {
+  font-family: 'Literata-fallback';
+  src: local('Georgia');
+  size-adjust: 97%;
+  ascent-override: 100%;
+  descent-override: 27%;
+}
+
 /* Base */
 *,
 *::before,

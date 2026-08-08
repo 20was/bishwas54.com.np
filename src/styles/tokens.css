@@ -6,7 +6,7 @@
 
 :root {
   /* Type */
-  --font-serif: 'Literata', Charter, Georgia, serif;
+  --font-serif: 'Literata', 'Literata-fallback', Georgia, serif;
   --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
 
@@ -52,7 +52,7 @@
   --bg: #f6ecd9;
   --bg-raised: #eee1c8;
   --text: #46382a;
-  --text-soft: #75634a;
+  --text-soft: #695741;
   --line: #e2d5bb;
   --line-strong: #c9b894;
   --accent: #175048;

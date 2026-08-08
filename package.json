@@ -15,7 +15,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "deploy": "npm run build && wrangler deploy && node scripts/indexnow.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@astrojs/mdx": "^7.0.5",
@@ -25,13 +26,18 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.62.1",
+    "@types/markdown-it": "^14.1.2",
     "astro-expressive-code": "^0.44.1",
     "astro-pagefind": "^2.0.1",
     "eslint": "^10.8.1",
     "eslint-plugin-astro": "^3.1.0",
+    "markdown-it": "^15.0.0",
     "pagefind": "^1.5.2",
     "prettier": "^3.9.6",
     "prettier-plugin-astro": "^0.14.1",
+    "satori": "^0.29.0",
     "typescript": "~5.9",
     "typescript-eslint": "^8.66.0",
     "vitest": "^4.1.10",
