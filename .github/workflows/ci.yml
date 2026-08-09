@@ -56,6 +56,14 @@ jobs:
       - name: Lighthouse budgets
         run: npx --yes @lhci/cli autorun
 
+      - name: Upload Lighthouse reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          retention-days: 3
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
