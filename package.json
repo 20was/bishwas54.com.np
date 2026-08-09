@@ -16,7 +16,8 @@
     "format:check": "prettier --check .",
     "deploy": "npm run build && wrangler deploy && node scripts/indexnow.mjs",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "sync-lessons": "node scripts/convert-lessons.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^7.0.5",

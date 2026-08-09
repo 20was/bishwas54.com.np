@@ -1,0 +1,82 @@
+name: Sync lessons from study lab
+
+# Triggered by a push to 20was/self-learn-docs (repository_dispatch) or
+# manually. Converts new/changed lab notes to verbatim MDX, lets Claude
+# append quizzes to quiz-less lessons, build-gates, then pushes to main —
+# which Workers Builds auto-deploys.
+
+on:
+  repository_dispatch:
+    types: [lessons-updated]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-lessons
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout study lab
+        uses: actions/checkout@v4
+        with:
+          repository: 20was/self-learn-docs
+          token: ${{ secrets.LESSONS_SYNC_TOKEN }}
+          path: lab
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Convert lessons (mechanical, verbatim)
+        run: node scripts/convert-lessons.mjs --lab lab/networking-lab
+
+      - name: Detect changes
+        id: diff
+        run: |
+          if git diff --quiet -- src/content; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Add quizzes to new lessons (Claude)
+        if: steps.diff.outputs.changed == 'true'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--allowed-tools "Read,Write,Edit,Glob,Grep"'
+          prompt: |
+            Some tutorials in src/content/tutorials/ may lack a
+            "## Check what stuck" quiz section. Read the repo skill at
+            .claude/skills/new-post/SKILL.md and follow its quiz rules
+            exactly. For each .mdx tutorial missing that section, append
+            it: 3-4 <QuizQuestion> items whose questions and answers come
+            ONLY from that lesson's own text, in the same JSX style as
+            src/content/tutorials/networking-and-ip-addresses.mdx.
+            NEVER modify the lesson body text itself — it is the owner's
+            verbatim writing. Never touch files that already have a quiz.
+            If every tutorial already has a quiz, do nothing.
+
+      - name: Build gate
+        if: steps.diff.outputs.changed == 'true'
+        run: npm run build
+
+      - name: Commit and push
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "lesson-sync[bot]"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/content
+          git commit -m "content: sync lessons from study lab"
+          git push

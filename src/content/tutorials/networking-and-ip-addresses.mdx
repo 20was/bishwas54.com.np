@@ -2,11 +2,13 @@
 title: 'Lesson 01 — What Networking Means in DevOps, and IP Addresses'
 description: 'Networking from zero: why machines need to reach each other, who hands out IP addresses, how the world ran out of them, and what IPv6 fixes.'
 datePublished: 2026-08-08
+dateUpdated: 2026-08-09
 tags: ['networking', 'basics', 'devops']
 level: beginner
 series:
   name: 'DevOps Networking'
   order: 1
+sourcePath: '01-foundations/01-what-networking-is-and-ip-addresses.md'
 aiAssisted: true
 ---
 
@@ -66,7 +68,7 @@ When that arrow is missing or pointed at the wrong place, the application looks 
 
 ### What problem it solves
 
-Modern applications are spread across many machines. Most production failures in that world are not broken code. They are **broken arrows**. Networking knowledge is what turns _"it's broken"_ into _"the traffic dies between point X and point Y."_
+Modern applications are spread across many machines. Most production failures in that world are not broken code. They are **broken arrows**. Networking knowledge is what turns *"it's broken"* into *"the traffic dies between point X and point Y."*
 
 ### Where it sits
 
@@ -165,7 +167,7 @@ The reserved **private ranges** — the ones a home router or an internal compan
 Two important details from the standard itself:
 
 - An organisation can use these addresses **without asking IANA or any registry for permission.** They are free for anyone to use internally.
-- Addresses in these ranges are only unique _inside_ one organisation. They are not routable on the public internet, and internet providers' routers are expected to filter them out.
+- Addresses in these ranges are only unique *inside* one organisation. They are not routable on the public internet, and internet providers' routers are expected to filter them out.
 
 ---
 
@@ -193,17 +195,17 @@ In the standards this is described as a 32-bit address — 32 binary digits, pro
 
 The regional pools then drained over the following years, each at its own pace:
 
-| Region                    | Registry | Pool exhausted    |
-| ------------------------- | -------- | ----------------- |
-| Asia-Pacific              | APNIC    | 15 April 2011     |
-| Latin America / Caribbean | LACNIC   | 10 June 2014      |
-| North America             | ARIN     | 24 September 2015 |
-| Africa                    | AFRINIC  | 21 April 2017     |
-| Europe / Middle East      | RIPE NCC | 25 November 2019  |
+| Region | Registry | Pool exhausted |
+|---|---|---|
+| Asia-Pacific | APNIC | 15 April 2011 |
+| Latin America / Caribbean | LACNIC | 10 June 2014 |
+| North America | ARIN | 24 September 2015 |
+| Africa | AFRINIC | 21 April 2017 |
+| Europe / Middle East | RIPE NCC | 25 November 2019 |
 
 **What happened when it ran out:** nothing dramatic. The internet did not stop, for one reason — **most machines do not need a globally unique number.**
 
-Go back to the home WiFi example. Laptop, phone and TV each had their own number, but those numbers are only meaningful inside the house. The whole home shares _one_ internet-facing number, and the router translates in both directions. So one global address can cover a household, an office, or thousands of machines.
+Go back to the home WiFi example. Laptop, phone and TV each had their own number, but those numbers are only meaningful inside the house. The whole home shares *one* internet-facing number, and the router translates in both directions. So one global address can cover a household, an office, or thousands of machines.
 
 That trick bought the internet an extra fifteen-plus years. It is a workaround, not a fix — and it is the reason the real solution exists.
 
@@ -223,14 +225,14 @@ Everything above describes **IPv4** — version 4, the four-numbers-with-dots fo
 
 Eight groups separated by colons, using hexadecimal (digits 0–9 plus letters a–f). The supply it produces is around **340 undecillion** — a number with 39 digits. It will not run out.
 
-|               | IPv4                 | IPv6                  |
-| ------------- | -------------------- | --------------------- |
-| Address size  | 32 bits              | 128 bits              |
-| Written as    | `10.0.1.57`          | `2001:db8::7334`      |
-| Separator     | dots                 | colons                |
-| Total supply  | ~4.3 billion         | ~340 undecillion      |
+| | IPv4 | IPv6 |
+|---|---|---|
+| Address size | 32 bits | 128 bits |
+| Written as | `10.0.1.57` | `2001:db8::7334` |
+| Separator | dots | colons |
+| Total supply | ~4.3 billion | ~340 undecillion |
 | Supply status | exhausted since 2011 | effectively unlimited |
-| Current spec  | RFC 791              | RFC 8200              |
+| Current spec | RFC 791 | RFC 8200 |
 
 **The detail that matters most:** the two are **not compatible**. An IPv6-only machine cannot talk to an IPv4-only machine directly. That means the world cannot simply switch over — every network has to support both during the transition. This is exactly why IPv6 has been "coming" since its first specification in December 1998 and is only now reaching majority use.
 
@@ -244,7 +246,7 @@ IPv6 was designed by the **IETF** — the Internet Engineering Task Force.
 
 It is not a company. It is not owned by anyone. There is no CEO, no shareholders, and no government controls it.
 
-**Who participates:** it is an open group of engineers, and anyone can join. There is no membership fee and no application process. The IETF's own documents state plainly that it is _not_ a membership organisation — there are no "members," only "participants," and this is precisely why they cannot hold votes: it would be impossible to determine who was entitled to vote. Most participants work at companies that depend on the internet functioning (network equipment vendors, internet providers, large software companies, universities), but they participate as individual engineers.
+**Who participates:** it is an open group of engineers, and anyone can join. There is no membership fee and no application process. The IETF's own documents state plainly that it is *not* a membership organisation — there are no "members," only "participants," and this is precisely why they cannot hold votes: it would be impossible to determine who was entitled to vote. Most participants work at companies that depend on the internet functioning (network equipment vendors, internet providers, large software companies, universities), but they participate as individual engineers.
 
 **How a decision is actually made:**
 
@@ -252,7 +254,7 @@ Someone writes a proposal and publishes it for anyone to read and attack. Others
 
 Two things make this group unusual:
 
-1. **There is no vote.** Decisions are made by _rough consensus_ — not everyone agreeing, but no one holding an objection serious enough to stand. Their founding principle, stated in a 1992 talk and quoted in their own standards documents, is: _reject kings, presidents and voting; believe in rough consensus and running code._ Critically, the documented rule is that an objection has to be genuinely considered and technically answered — a group cannot simply dismiss it because more people disagree. A single engineer with a valid technical objection can hold up a proposal backed by a large company.
+1. **There is no vote.** Decisions are made by *rough consensus* — not everyone agreeing, but no one holding an objection serious enough to stand. Their founding principle, stated in a 1992 talk and quoted in their own standards documents, is: *reject kings, presidents and voting; believe in rough consensus and running code.* Critically, the documented rule is that an objection has to be genuinely considered and technically answered — a group cannot simply dismiss it because more people disagree. A single engineer with a valid technical objection can hold up a proposal backed by a large company.
 
 2. **Running code beats theory.** A design is not accepted because it looks good on paper. Practical implementation experience outweighs theoretical elegance.
 
@@ -284,15 +286,15 @@ Traps in this topic worth remembering.
 
 ## Old way vs improved understanding
 
-| Topic                     | Old way of thinking                                                | Improved understanding                                                                                                                        |
-| ------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| What networking is        | Cables, WiFi, "the internet" — infrastructure someone else handles | The deliberate creation and control of paths between machines; a core part of the DevOps job                                                  |
-| Why apps break            | The code must be wrong                                             | Most failures are reachability failures; the app can be perfectly healthy and still unreachable                                               |
-| IP address                | A technical string that appears in configs                         | A machine's identity on a network; the answer to "which machine?"                                                                             |
-| Who runs it               | Some company or government owns the internet's addressing          | A layered chain of non-profit registries (IANA → 5 RIRs → providers), with the technical rules set by an open engineering group with no owner |
-| Address supply            | Unlimited, like a serial number                                    | A finite, exhausted resource with a resale market attached                                                                                    |
-| IPv6                      | A newer version, nice-to-have, always "coming soon"                | The actual fix for exhaustion, incompatible with IPv4 by design, and as of March 2026 carrying the majority of Google's traffic               |
-| How standards are decided | A committee votes, or a big company decides                        | Public argument, rough consensus, no voting, and objections must be technically answered rather than outnumbered                              |
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| What networking is | Cables, WiFi, "the internet" — infrastructure someone else handles | The deliberate creation and control of paths between machines; a core part of the DevOps job |
+| Why apps break | The code must be wrong | Most failures are reachability failures; the app can be perfectly healthy and still unreachable |
+| IP address | A technical string that appears in configs | A machine's identity on a network; the answer to "which machine?" |
+| Who runs it | Some company or government owns the internet's addressing | A layered chain of non-profit registries (IANA → 5 RIRs → providers), with the technical rules set by an open engineering group with no owner |
+| Address supply | Unlimited, like a serial number | A finite, exhausted resource with a resale market attached |
+| IPv6 | A newer version, nice-to-have, always "coming soon" | The actual fix for exhaustion, incompatible with IPv4 by design, and as of March 2026 carrying the majority of Google's traffic |
+| How standards are decided | A committee votes, or a big company decides | Public argument, rough consensus, no voting, and objections must be technically answered rather than outnumbered |
 
 ---
 
@@ -334,44 +336,44 @@ Every factual claim above can be verified here.
 
 ### Primary standards documents
 
-| Topic                                             | Document            | Link                                          |
-| ------------------------------------------------- | ------------------- | --------------------------------------------- |
-| IPv4 specification                                | RFC 791             | https://www.rfc-editor.org/rfc/rfc791.html    |
-| Private address ranges                            | RFC 1918 (1996)     | https://www.rfc-editor.org/rfc/rfc1918.html   |
-| IPv6, current specification                       | RFC 8200 (2017)     | https://www.rfc-editor.org/rfc/rfc8200.html   |
-| IPv6, original specification                      | RFC 2460 (Dec 1998) | https://datatracker.ietf.org/doc/html/rfc2460 |
-| How the IETF decides — rough consensus, no voting | RFC 7282            | https://www.rfc-editor.org/rfc/rfc7282        |
-| Internet standards process                        | RFC 2026            | https://www.rfc-editor.org/rfc/rfc2026.html   |
+| Topic | Document | Link |
+|---|---|---|
+| IPv4 specification | RFC 791 | https://www.rfc-editor.org/rfc/rfc791.html |
+| Private address ranges | RFC 1918 (1996) | https://www.rfc-editor.org/rfc/rfc1918.html |
+| IPv6, current specification | RFC 8200 (2017) | https://www.rfc-editor.org/rfc/rfc8200.html |
+| IPv6, original specification | RFC 2460 (Dec 1998) | https://datatracker.ietf.org/doc/html/rfc2460 |
+| How the IETF decides — rough consensus, no voting | RFC 7282 | https://www.rfc-editor.org/rfc/rfc7282 |
+| Internet standards process | RFC 2026 | https://www.rfc-editor.org/rfc/rfc2026.html |
 
 ### Address exhaustion
 
-| Claim                                    | Source                                                  | Link                                                                |
-| ---------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------- |
-| Global IPv4 pool depleted 3 Feb 2011     | Number Resource Organization announcement               | https://www.nro.net/ipv4-free-pool-depleted/                        |
-| Same event, registry record              | ARIN announcement archive                               | https://www.arin.net/vault/announcements/20110203/                  |
-| Per-region exhaustion dates              | Wikipedia — secondary, cites the registry announcements | https://en.wikipedia.org/wiki/IPv4_address_exhaustion               |
-| Private ranges are not publicly routable | ARIN reference page                                     | https://www.arin.net/reference/research/statistics/address_filters/ |
+| Claim | Source | Link |
+|---|---|---|
+| Global IPv4 pool depleted 3 Feb 2011 | Number Resource Organization announcement | https://www.nro.net/ipv4-free-pool-depleted/ |
+| Same event, registry record | ARIN announcement archive | https://www.arin.net/vault/announcements/20110203/ |
+| Per-region exhaustion dates | Wikipedia — secondary, cites the registry announcements | https://en.wikipedia.org/wiki/IPv4_address_exhaustion |
+| Private ranges are not publicly routable | ARIN reference page | https://www.arin.net/reference/research/statistics/address_filters/ |
 
 ### IPv6 adoption
 
-| Claim                                         | Source                 | Link                                                                                    |
-| --------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------- |
-| Live adoption measurement                     | Google IPv6 Statistics | https://www.google.com/intl/en/ipv6/statistics.html                                     |
-| Crossed 50% on 28 March 2026                  | Internet Society Pulse | https://pulse.internetsociety.org/en/blog/2026/04/18-years-later-ipv6-reaches-majority/ |
-| Independent confirmation and regional context | APNIC Blog             | https://blog.apnic.net/2026/04/28/google-hits-50-ipv6/                                  |
+| Claim | Source | Link |
+|---|---|---|
+| Live adoption measurement | Google IPv6 Statistics | https://www.google.com/intl/en/ipv6/statistics.html |
+| Crossed 50% on 28 March 2026 | Internet Society Pulse | https://pulse.internetsociety.org/en/blog/2026/04/18-years-later-ipv6-reaches-majority/ |
+| Independent confirmation and regional context | APNIC Blog | https://blog.apnic.net/2026/04/28/google-hits-50-ipv6/ |
 
 ### IPv4 resale market — indicative only
 
-| Claim                                                     | Source                     | Link                                             |
-| --------------------------------------------------------- | -------------------------- | ------------------------------------------------ |
+| Claim | Source | Link |
+|---|---|---|
 | 29.7M addresses transferred H1 2026, ~$20/address average | IPregistry market analysis | https://ipregistry.co/blog/ipv4-market-mid-2026/ |
-| Price history and 2021–22 peak                            | Market commentary          | https://ipbnb.com/blog/ipv4-address-price-2026   |
+| Price history and 2021–22 peak | Market commentary | https://ipbnb.com/blog/ipv4-address-price-2026 |
 
 > **Source note:** the RFC and registry links are authoritative primary sources. The resale-market links are commercial brokers and analysts — useful for order of magnitude, not precise figures.
 
 ---
 
-_End of Lesson 01. Next: ports._
+*End of Lesson 01. Next: ports.*
 
 ## Check what stuck
 
