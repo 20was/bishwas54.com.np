@@ -5,3 +5,5 @@ package-lock.json
 
 # Owner's content stays verbatim — formatter must not rewrite it
 src/content/
+test-results/
+playwright-report/

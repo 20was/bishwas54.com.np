@@ -24,3 +24,5 @@ pnpm-debug.log*
 .idea/
 firebase-debug.log
 public/og/
+test-results/
+playwright-report/
