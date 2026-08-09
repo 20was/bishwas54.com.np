@@ -7,12 +7,10 @@ level: beginner
 series:
   name: 'DevOps Networking'
   order: 3
-sourcePath: '01-foundations/03-network-models-and-layers.md'
+sourceId: net-foundations-03
+sourcePath: 'networking-lab/01-foundations/03-network-models-and-layers.md'
 aiAssisted: true
 ---
-
-import Quiz from '../../components/Quiz.astro';
-import QuizQuestion from '../../components/QuizQuestion.astro';
 
 > **Track:** DevOps Networking — 1 Month Deep Dive
 > **Part:** 1 — Networking Foundations
@@ -269,62 +267,3 @@ The independence of the layers is not a rule that someone enforces. It falls str
 ---
 
 *End of Lesson 03. Next: DNS — how the laptop learned GitHub's address in the first place.*
-
-## Check what stuck
-
-<Quiz>
-  <QuizQuestion
-    question="In this lesson, what is a layer?"
-    options={[
-      'A piece of hardware inside the router',
-      'One line of the message plus the job of reading it',
-      'A security barrier between two networks',
-    ]}
-    answer={1}
-  >
-    That is the entire meaning of the word: the message has parts, and
-    different parts are read by different things at different points in the
-    journey — address by junctions, port by the destination computer, text
-    by the program.
-  </QuizQuestion>
-  <QuizQuestion
-    question="Who reads the address (Layer 3) on the message?"
-    options={[
-      'Every junction along the way',
-      'Only the destination computer, at arrival',
-      'The program holding the port',
-    ]}
-    answer={0}
-  >
-    Each junction reads the address, picks a direction, and passes the
-    message on. The port is read only at the destination, and the text only
-    by the program at the very end.
-  </QuizQuestion>
-  <QuizQuestion
-    question="Why do people skip from Layer 4 straight to Layer 7?"
-    options={[
-      'Layers 5 and 6 are secret and rarely documented',
-      'The jobs of layers 5 and 6 got absorbed into layer 7 in practice',
-      'It is a common mistake that should be corrected',
-    ]}
-    answer={1}
-  >
-    The numbering comes from the seven-layer OSI plan, but the internet as
-    actually built collapsed 5 and 6 into 7. Saying 1, 2, 3, 4, 7 is how the
-    field really talks, not missing knowledge.
-  </QuizQuestion>
-  <QuizQuestion
-    question="Why can one layer be swapped without touching the others?"
-    options={[
-      'A standards body enforces strict separation rules',
-      'Each stage physically cannot see beyond its own envelope',
-      'Modern routers are programmed to ignore other layers',
-    ]}
-    answer={1}
-  >
-    Encapsulation makes independence automatic: a junction sees only the
-    outer envelope, so it cannot misdeliver based on the text, and the
-    carrying layer cannot care what the message says. Nobody enforces it —
-    it falls straight out of how the envelopes nest.
-  </QuizQuestion>
-</Quiz>

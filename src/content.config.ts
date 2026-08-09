@@ -20,7 +20,9 @@ const tutorials = defineCollection({
     series: z
       .object({ name: z.string(), order: z.number().int().positive() })
       .optional(),
-    /** Lab-note path this lesson was synced from (scripts/convert-lessons.mjs) */
+    /** Stable content ID + lab-note path this lesson was synced from
+     *  (scripts/sync-content.mjs — see src/content/sync-manifest.json) */
+    sourceId: z.string().optional(),
     sourcePath: z.string().optional(),
   }),
 });

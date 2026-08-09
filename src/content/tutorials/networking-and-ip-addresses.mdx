@@ -8,12 +8,10 @@ level: beginner
 series:
   name: 'DevOps Networking'
   order: 1
-sourcePath: '01-foundations/01-what-networking-is-and-ip-addresses.md'
+sourceId: net-foundations-01
+sourcePath: 'networking-lab/01-foundations/01-what-networking-is-and-ip-addresses.md'
 aiAssisted: true
 ---
-
-import Quiz from '../../components/Quiz.astro';
-import QuizQuestion from '../../components/QuizQuestion.astro';
 
 > **Track:** DevOps Networking — 1 Month Deep Dive
 > **Part:** 1 — Networking Foundations
@@ -374,54 +372,3 @@ Every factual claim above can be verified here.
 ---
 
 *End of Lesson 01. Next: ports.*
-
-## Check what stuck
-
-<Quiz>
-  <QuizQuestion
-    question="What is an IP address?"
-    options={[
-      'A password for joining a network',
-      'The number identifying one machine on a network',
-      'The name of a website',
-    ]}
-    answer={1}
-  >
-    An IP address answers exactly one question: "which machine?" Every machine
-    on a network holds a number so requests can be delivered to the right one.
-  </QuizQuestion>
-  <QuizQuestion
-    question="Which of these is a private (RFC 1918) address?"
-    options={['172.32.4.1', '10.200.3.7', '8.8.8.8']}
-    answer={1}
-  >
-    The private blocks are 10.x.x.x, 172.16–31.x.x, and 192.168.x.x. 172.32.x.x
-    sits just outside the middle block — a classic trap — and 8.8.8.8 is a
-    public address.
-  </QuizQuestion>
-  <QuizQuestion
-    question="What happened when the global IPv4 pool ran out in 2011?"
-    options={[
-      'The internet stopped accepting new devices',
-      'Nothing dramatic — most machines share public addresses, and unused blocks are resold',
-      'Everyone switched to IPv6 that year',
-    ]}
-    answer={1}
-  >
-    Address sharing (one public address per household or office) plus a resale
-    market kept IPv4 going. IPv6 adoption took another 15 years to reach even
-    half of traffic.
-  </QuizQuestion>
-  <QuizQuestion
-    question="How does the IETF approve a standard?"
-    options={[
-      'Member companies vote, weighted by size',
-      'A government committee signs it off',
-      'Rough consensus — objections must be technically answered, and there is no voting',
-    ]}
-    answer={2}
-  >
-    "Rough consensus and running code": no votes, no members — a proposal
-    survives public technical argument or it doesn't.
-  </QuizQuestion>
-</Quiz>

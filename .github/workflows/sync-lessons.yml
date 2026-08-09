@@ -1,19 +1,31 @@
-name: Sync lessons from study lab
+name: Sync content from study lab
 
-# Triggered by a push to 20was/self-learn-docs (repository_dispatch) or
-# manually. Converts new/changed lab notes to verbatim MDX, build-gates,
-# then pushes to main — which Workers Builds auto-deploys.
+# One-way, deterministic, no-AI sync: 20was/self-learn-docs → this repo.
+# Triggered by repository_dispatch from the lab's notify-blog.yml (payload
+# carries the exact source commit) or manually. Publishes ONLY notes whose
+# frontmatter says `publish: true` — folder location never decides.
+# Output lands on a fixed automation branch as a pull request; ci.yml
+# validates it; deploy happens only after merge (Workers Builds on main).
+#
+# Secrets: LESSONS_SYNC_TOKEN — fine-grained PAT, read-only Contents on
+# 20was/self-learn-docs only. PR creation uses the built-in GITHUB_TOKEN.
 
 on:
   repository_dispatch:
     types: [lessons-updated]
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'self-learn-docs ref to sync'
+        required: false
+        default: main
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
-  group: sync-lessons
+  group: sync-content
   cancel-in-progress: false
 
 jobs:
@@ -22,12 +34,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Checkout study lab
+      - name: Checkout study lab at the exact source commit
         uses: actions/checkout@v4
         with:
           repository: 20was/self-learn-docs
           token: ${{ secrets.LESSONS_SYNC_TOKEN }}
+          ref: ${{ github.event.client_payload.sha || inputs.source_ref || 'main' }}
           path: lab
+
+      - name: Record source commit
+        id: src
+        run: |
+          sha="$(git -C lab rev-parse HEAD)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "short=${sha:0:7}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
         with:
@@ -36,27 +56,30 @@ jobs:
 
       - run: npm ci
 
-      - name: Convert lessons (mechanical, verbatim)
-        run: node scripts/convert-lessons.mjs --lab lab/networking-lab
+      # Validation failures exit non-zero here — no PR is created.
+      - name: Sync (deterministic, verbatim, no AI)
+        run: node scripts/sync-content.mjs --lab lab --source-commit "${{ steps.src.outputs.sha }}" | tee sync-report.txt
 
-      - name: Detect changes
-        id: diff
+      - name: Compose pull request body
         run: |
-          if git diff --quiet -- src/content; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
+          {
+            echo "One-way content sync from [20was/self-learn-docs @ ${{ steps.src.outputs.short }}](https://github.com/20was/self-learn-docs/commit/${{ steps.src.outputs.sha }})."
+            echo
+            echo '```'
+            cat sync-report.txt
+            echo '```'
+            echo
+            echo 'Generated mechanically by `scripts/sync-content.mjs` — no AI, body verbatim from the lab note.'
+            echo 'Diff must touch only `src/content/tutorials/` and `src/content/sync-manifest.json`.'
+            echo 'Merging deploys automatically via Workers Builds.'
+          } > pr-body.md
 
-      - name: Build gate
-        if: steps.diff.outputs.changed == 'true'
-        run: npm run build
-
-      - name: Commit and push
-        if: steps.diff.outputs.changed == 'true'
-        run: |
-          git config user.name "lesson-sync[bot]"
-          git config user.email "actions@users.noreply.github.com"
-          git add src/content
-          git commit -m "content: sync lessons from study lab"
-          git push
+      - name: Create or update pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/sync-lessons
+          add-paths: src/content/**
+          commit-message: 'content: sync lessons from study lab @ ${{ steps.src.outputs.short }}'
+          title: 'content: sync from study lab'
+          body-path: pr-body.md
+          delete-branch: true

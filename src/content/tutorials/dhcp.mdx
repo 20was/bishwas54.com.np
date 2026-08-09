@@ -7,12 +7,10 @@ level: beginner
 series:
   name: 'DevOps Networking'
   order: 5
-sourcePath: '01-foundations/05-dhcp.md'
+sourceId: net-foundations-05
+sourcePath: 'networking-lab/01-foundations/05-dhcp.md'
 aiAssisted: true
 ---
-
-import Quiz from '../../components/Quiz.astro';
-import QuizQuestion from '../../components/QuizQuestion.astro';
 
 > **Track:** DevOps Networking — 1 Month Deep Dive
 > **Part:** 1 — Networking Foundations
@@ -210,64 +208,3 @@ The deeper fix is already known from the DNS lesson: depend on *names*, not numb
 ---
 
 *End of Lesson 05. Next: MAC addresses and ARP — how the shout physically reaches everyone, and the last envelope we haven't opened.*
-
-## Check what stuck
-
-<Quiz>
-  <QuizQuestion
-    question="What does DHCP do when a computer joins a network?"
-    options={[
-      'It connects the computer to the WiFi',
-      'It automatically hands over everything needed to participate — a number, the DNS runner, and the way out',
-      'It checks whether the computer is allowed on the network',
-    ]}
-    answer={1}
-  >
-    DHCP assigns; it does not connect. The WiFi connection happens first,
-    and DHCP is the four-line conversation that runs immediately after,
-    delivering the whole bundle with zero typing.
-  </QuizQuestion>
-  <QuizQuestion
-    question="Why is the laptop's first DHCP message a shout to everyone?"
-    options={[
-      'Shouting is faster than a normal message',
-      'The laptop has no number and does not know the router\'s number, so it cannot address anyone',
-      'The router requires all messages to be broadcast',
-    ]}
-    answer={1}
-  >
-    A normal message needs a destination and a source, and the joining
-    laptop has neither. The shout — officially a broadcast — goes to
-    everyone on the local network, and only the router's DHCP answering
-    program responds.
-  </QuizQuestion>
-  <QuizQuestion
-    question="Why does the router lend numbers as leases instead of giving them forever?"
-    options={[
-      'So departed devices automatically return numbers to the small pool',
-      'Because IP addresses legally cannot be owned',
-      'To force devices to reconnect every day',
-    ]}
-    answer={0}
-  >
-    A home router only has a couple hundred numbers. Given forever, every
-    visiting phone would keep one eternally — IPv4 exhaustion in miniature.
-    Leases make the system self-cleaning, the same way TTL does for DNS
-    answers.
-  </QuizQuestion>
-  <QuizQuestion
-    question="Which machines should NOT rely on DHCP for their number?"
-    options={[
-      'Laptops and phones that come and go',
-      'Machines that others depend on, like one running a database or backend',
-      'Any device connected over WiFi',
-    ]}
-    answer={1}
-  >
-    If a depended-upon machine's lease lapses and it reboots into a
-    different number, everything pointing at it breaks while nothing looks
-    wrong anywhere. Machines that others contact get a fixed number, set
-    deliberately — and depending on names instead of numbers is the deeper
-    fix.
-  </QuizQuestion>
-</Quiz>

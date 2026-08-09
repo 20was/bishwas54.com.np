@@ -7,12 +7,10 @@ level: beginner
 series:
   name: 'DevOps Networking'
   order: 2
-sourcePath: '01-foundations/02-ports.md'
+sourceId: net-foundations-02
+sourcePath: 'networking-lab/01-foundations/02-ports.md'
 aiAssisted: true
 ---
-
-import Quiz from '../../components/Quiz.astro';
-import QuizQuestion from '../../components/QuizQuestion.astro';
 
 > **Track:** DevOps Networking — 1 Month Deep Dive
 > **Part:** 1 — Networking Foundations
@@ -442,60 +440,3 @@ This shape gets rebuilt at every level of the track — as containers, then as p
 ---
 
 *End of Lesson 02. Next: DNS.*
-
-## Check what stuck
-
-<Quiz>
-  <QuizQuestion
-    question="In 10.0.1.10:8080, what does the 8080 identify?"
-    options={[
-      'Which machine on the network the request is for',
-      'Which program on that machine the request is for',
-      'How fast the connection is allowed to be',
-    ]}
-    answer={1}
-  >
-    The IP finds the machine; the port finds the program on it. A port number
-    alone is meaningless — only IP:port identifies something specific.
-  </QuizQuestion>
-  <QuizQuestion
-    question="A program fails to start with EADDRINUSE on port 8080. What happened?"
-    options={[
-      'You lack permission to use that port',
-      'The port is below 1024 and protected',
-      'Another program already claimed the port first',
-    ]}
-    answer={2}
-  >
-    EADDRINUSE means the port is already taken — first come, first served.
-    Permission problems produce a different error, EACCES, and confusing the
-    two wastes a lot of debugging time.
-  </QuizQuestion>
-  <QuizQuestion
-    question="Which programs claim a port?"
-    options={[
-      'Every program installed on the machine',
-      'Only programs that wait to be contacted',
-      'Only databases like PostgreSQL',
-    ]}
-    answer={1}
-  >
-    Waiters need a port so anything can reach them; askers like Chrome send
-    requests constantly but never sit waiting to receive one, so they claim
-    no port to listen on.
-  </QuizQuestion>
-  <QuizQuestion
-    question="Why do development tools like React default to high ports such as 3000?"
-    options={[
-      'IANA registered 3000 for development servers',
-      'Ports above 1023 are free to claim without admin permission',
-      'High ports are faster than low ports',
-    ]}
-    answer={1}
-  >
-    Low ports (0 to 1023) are protected and need admin permission. A tool
-    defaulting to 80 would demand admin rights every start; defaulting to
-    3000 or 8080 means it just runs. High-port defaults are convention, not
-    registration.
-  </QuizQuestion>
-</Quiz>

@@ -7,12 +7,10 @@ level: beginner
 series:
   name: 'DevOps Networking'
   order: 4
-sourcePath: '01-foundations/04-dns.md'
+sourceId: net-foundations-04
+sourcePath: 'networking-lab/01-foundations/04-dns.md'
 aiAssisted: true
 ---
-
-import Quiz from '../../components/Quiz.astro';
-import QuizQuestion from '../../components/QuizQuestion.astro';
 
 > **Track:** DevOps Networking — 1 Month Deep Dive
 > **Part:** 1 — Networking Foundations
@@ -698,61 +696,3 @@ Same files, same lines, same chain. Only the doorman changes.
 ---
 
 *End of Lesson 04. Next: DHCP — the router "handing things over" finally gets its real name.*
-
-## Check what stuck
-
-<Quiz>
-  <QuizQuestion
-    question="What is the entire job of DNS?"
-    options={[
-      'To carry the request to the right machine',
-      'To turn a name into a number',
-      'To decide which program receives a request',
-    ]}
-    answer={1}
-  >
-    Name goes in, number comes out. Nothing else. Junctions navigate by
-    numbers only, so this conversion has to happen before Chrome can build
-    the envelope.
-  </QuizQuestion>
-  <QuizQuestion
-    question="Does 8.8.8.8 hold the answers to the world's DNS questions?"
-    options={[
-      'Yes — it keeps a giant list of every name and number',
-      'No — it is a runner that fetches answers by walking the chain',
-      'Only for names ending in .com',
-    ]}
-    answer={1}
-  >
-    It knows almost nothing. The real answer lives at the end of the chain,
-    on the name owner's own computer. The runner just does the legwork of
-    asking root, then .com, then the owner — and any runner in the world
-    gets the same answer.
-  </QuizQuestion>
-  <QuizQuestion
-    question="What is a TTL?"
-    options={[
-      'How long an answer may be remembered, set by the name owner',
-      'The maximum time a request may spend travelling',
-      'The number of junctions a message may pass through',
-    ]}
-    answer={0}
-  >
-    Caching created a staleness problem, and TTL is the fix: every answer
-    expires, and the owner controls the trade-off — long TTL means fewer
-    re-asks, short TTL means changes spread within minutes.
-  </QuizQuestion>
-  <QuizQuestion
-    question="Who owns github.com?"
-    options={[
-      'GitHub owns it permanently, like property',
-      'Verisign owns it and licenses it to GitHub',
-      'Nobody — names are rented yearly, and GitHub keeps paying',
-    ]}
-    answer={2}
-  >
-    Nobody owns a domain name. It is a lease, permanently renewable, never a
-    purchase. Stop paying, and after the grace, redemption, and pending
-    delete stages the name goes back into the pool for anyone to take.
-  </QuizQuestion>
-</Quiz>

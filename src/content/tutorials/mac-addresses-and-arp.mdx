@@ -7,12 +7,10 @@ level: beginner
 series:
   name: 'DevOps Networking'
   order: 6
-sourcePath: '01-foundations/06-mac-addresses-and-arp.md'
+sourceId: net-foundations-06
+sourcePath: 'networking-lab/01-foundations/06-mac-addresses-and-arp.md'
 aiAssisted: true
 ---
-
-import Quiz from '../../components/Quiz.astro';
-import QuizQuestion from '../../components/QuizQuestion.astro';
 
 > **Track:** DevOps Networking — 1 Month Deep Dive
 > **Part:** 1 — Networking Foundations
@@ -292,62 +290,3 @@ Both already on the lesson list:
 ---
 
 *End of Lesson 06. Next: routing — how every junction on Earth knows which way to pass the envelope.*
-
-## Check what stuck
-
-<Quiz>
-  <QuizQuestion
-    question="Where does a MAC address come from?"
-    options={[
-      'The router assigns it along with the IP during the DHCP lease',
-      'It is burned into the network chip at the factory and never changes',
-      'The operating system generates a new one on every network you join',
-    ]}
-    answer={1}
-  >
-    A MAC is factory-permanent: the first three pairs identify the
-    manufacturer, the rest are its serial numbering. The IP, by contrast, is
-    leased by the network and is different on every network you join.
-  </QuizQuestion>
-  <QuizQuestion
-    question="An envelope addressed to ff:ff:ff:ff:ff:ff is opened by..."
-    options={[
-      'Only the router',
-      'Every chip on the local network',
-      'Whichever chip answered the last ARP shout',
-    ]}
-    answer={1}
-  >
-    That is the broadcast address — the MAC meaning "every chip opens this."
-    It is how the DHCP shout works before any IP numbers exist at all: the
-    shout rides a Layer 2 envelope, never IP delivery.
-  </QuizQuestion>
-  <QuizQuestion
-    question="What problem does ARP solve?"
-    options={[
-      'Turning a domain name into an IP address',
-      'Assigning a fresh IP number to a new device',
-      'Turning a local IP address into a MAC address',
-    ]}
-    answer={2}
-  >
-    DHCP said the way out is 192.168.1.1 — an IP — but the Layer 2 envelope
-    needs the router's MAC. ARP shouts "Who has 192.168.1.1?", the router
-    answers, and the result goes into the ARP cache, expiring like a DNS
-    answer.
-  </QuizQuestion>
-  <QuizQuestion
-    question="On the journey from a laptop to GitHub, which envelope is torn off and rewritten at every hop?"
-    options={[
-      'The IP envelope',
-      'The MAC envelope',
-      'The port envelope',
-    ]}
-    answer={1}
-  >
-    The IP envelope survives the whole journey untouched — it answers "where
-    is this ultimately going." The MAC envelope answers "which chip gets it
-    next" and is born and torn at every single hop; the laptop only ever
-    needed the MAC of its next hop, the router.
-  </QuizQuestion>
-</Quiz>

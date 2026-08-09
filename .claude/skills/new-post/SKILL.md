@@ -1,78 +1,75 @@
 ---
 name: new-post
-description: Author a new tutorial or note for bishwas54.com.np — correct frontmatter, components, style rules, quiz format, and the publish checklist. Use when Bishwas asks to write, draft, or publish a post/tutorial/note.
+description: Author a new note for bishwas54.com.np, or operate the lesson sync — correct frontmatter, components, style rules, and the publish checklist. Use when Bishwas asks to write, draft, publish, or sync a post/tutorial/note.
 ---
 
 # New post
 
-## The flow (this session IS the pipeline — no API keys, no Actions)
+## Two pipelines — know which one you're in
 
-Bishwas studies a topic anywhere, then hands over raw material: a file in
-`inbox/`, pasted text, a link, or just "write a tutorial about X from what
-I learned". From that:
+1. **Tutorials/lessons** (`src/content/tutorials/`) are a GENERATED
+   ARTIFACT, one-way synced from the private study lab
+   `20was/self-learn-docs`. **Never author or hand-edit tutorial MDX in a
+   session.** To publish a lesson: it gets `publish: true` frontmatter in
+   the lab repo (contract documented in the lab's `CLAUDE.md`), and the
+   sync does the rest. See "Sync operations" below.
+2. **Notes** (`src/content/notes/`) are authored in-session from
+   Bishwas's raw material via the flow below.
+
+## Notes flow (this session IS the pipeline — no API keys, no Actions)
+
+Bishwas hands over raw material: a file in `inbox/`, pasted text, a link,
+or "write a note about X from what I learned". From that:
 
 1. Extract the central idea. Draft using ONLY the supplied material plus
    well-established general knowledge. Where his notes are ambiguous or
    thin, ASK him — never guess, never invent his experiences, numbers,
    results, or citations. Never claim something was tested unless he says
    he tested it.
-2. Write the post per the rules below, show him a summary + the live-file
-   path, let him review (dev server or read the file).
+2. Write the post per the rules below, show him a summary + the file
+   path, let him review.
 3. Publish only on his explicit OK (see checklist). Delete the processed
    inbox file in the same commit.
 
 ## VERBATIM rule (owner requirement — overrides everything)
 
-Bishwas's notes are published **word-for-word**. Never condense, rewrite,
-"improve", or reflow his text. Conversion is mechanical:
+Bishwas's study notes are published **word-for-word**. Never condense,
+rewrite, "improve", or reflow his text. The sync script enforces this for
+tutorials (body = lab note minus the `# h1`, byte-for-byte). For notes,
+the one-sentence frontmatter `description` is the only text you write
+unless he asks for drafting help. `src/content/` is in `.prettierignore`
+— keep it there.
 
-1. Body = source file byte-for-byte, minus ONLY the top `# h1` line
-   (which becomes the frontmatter title). Assemble by script, never retype.
-2. Quizzes are DEFERRED (owner, 2026-08-09): do not add quizzes to new
-   lessons unless he asks. Existing quiz sections on published lessons
-   stay and are preserved by the sync script.
-3. The one-sentence frontmatter `description` is the only text you write.
-4. Verify byte-identical: strip frontmatter/imports/quiz from the MDX,
-   diff against the source minus h1 — must match exactly.
-5. `src/content/` is in `.prettierignore` — keep it there.
+## Quizzes are REMOVED (owner decision, 2026-08-09)
 
-## AUTOMATED since 2026-08-09 — conversion usually needs no session
+No quizzes anywhere. Quiz components were deleted. Do not add quiz
+sections, quiz components, or Quiz JSON-LD to anything.
 
-Pushing lesson notes to `20was/self-learn-docs` triggers the pipeline:
-dispatch → site repo `sync-lessons.yml` → `scripts/convert-lessons.mjs`
-(mechanical verbatim, preserves frontmatter/quiz, stamps dateUpdated,
-skips 0-byte stubs, SECTIONS + SLUG_OVERRIDES maps inside) → Claude
-action appends quizzes to new lessons → build gate → push → auto-deploy.
-Manual equivalents: `npm run sync-lessons` locally, or Actions →
-"Sync lessons from study lab" → Run workflow. If a manual conversion IS
-requested, prefer running the script over hand-converting. New lab
-section folder ⇒ add it to SECTIONS in the script first.
+## Sync operations (tutorials)
 
-## Series conversion (his study lab → site)
+- Automated path: he pushes notes to the lab → `notify-blog.yml`
+  dispatches (with commit SHA) → this repo's `sync-lessons.yml` runs
+  `scripts/sync-content.mjs` against that exact SHA → PR on
+  `automation/sync-lessons` → ci.yml validates → he merges → auto-deploy.
+- Local commands: `npm run content:sync:dry-run` (preview),
+  `npm run content:validate`, `npm run content:sync` (apply). Default lab
+  path `~/Desktop/Self-Learn-Docs`, override with `--lab <path>`.
+- Publication is decided ONLY by `publish: true` + `id` in the lab note's
+  frontmatter. Empty files and unmarked files are skipped — never invent
+  content for them.
+- Identity = `id` (see `src/content/sync-manifest.json`). Slugs/URLs are
+  frozen; the sync errors on slug changes. Folder moves don't duplicate.
+- Frontmatter overlay: `description`/`tags`/`level`/`series` may be
+  curated here and survive syncs (unless the lab note sets them
+  explicitly). Body edits here are ALWAYS lost on next sync.
+- Deletions: never automatic — "proposed archive" in the PR; apply with
+  `--apply-archives`.
+- New lab track/section ⇒ extend `SERIES_BY_FOLDER` (metadata default)
+  and, for new collections, `SYNC_COLLECTIONS` in `scripts/sync/config.mjs`.
+- MDX safety: literal `{` or raw `<`+letter in note prose breaks the MDX
+  build — the sync PR's ci run catches it; report, don't silently edit.
 
-Study lab: `/Users/bishwas/Desktop/Self-Learn-Docs/networking-lab/`
-(sections: 01-foundations, 02-aws, 03-docker, 04-kubernetes, 05-proxies,
-06-traffic-flow). When he says "convert the new lessons":
-
-- **Check file size first — 0-byte files are unwritten stubs; skip them,
-  never invent content for them.** (As of 2026-08-08: foundations 01–06
-  published, 07–14 empty.)
-- Slug = filename minus the `NN-` prefix. Series order = the `NN` number.
-- Series name so far: `'DevOps Networking'` (foundations). Ask before
-  starting a new series name for other sections.
-- Batchable: parallel agents fine (disjoint files), but the main session
-  re-verifies every file byte-identical before deploy.
-- MDX safety scan per source: literal `{` or raw `<`+letter in prose
-  breaks MDX — report, don't silently edit.
-
-## Decide type
-
-- **Tutorial** (`src/content/tutorials/<slug>.mdx`): teachable topic, step-by-step, ends with a quiz. Level: beginner unless told otherwise.
-- **Note** (`src/content/notes/<slug>.mdx`): one small tip/insight, no quiz.
-
-Slug: short kebab-case, no dates (URLs are permanent).
-
-## Frontmatter (validated by src/content.config.ts)
+## Notes: frontmatter (validated by src/content.config.ts)
 
 ```yaml
 ---
@@ -80,7 +77,6 @@ title: 'Plain-words title'
 description: 'One sentence, said simply — this is the SEO description and lede.'
 datePublished: YYYY-MM-DD # today, real date
 tags: ['lowercase', 'reuse-existing-tags']
-level: beginner # tutorials only
 draft: true # remove only at publish time
 aiAssisted: true # if Claude drafted it
 ---
@@ -93,27 +89,15 @@ On revising a published post, set `dateUpdated` — only for real changes (fake 
 - Beginner-friendly: assume zero knowledge, plain words, short paragraphs, one idea each.
 - First person allowed; NEVER invent personal experiences, numbers, project status, citations, or "I tested this" claims.
 - Question-form H2s where natural ("Why does X exist?") — helps AI-search citability. Answer in the first two sentences of the section.
-- Components (import from `../../components/`): `Callout` (note/tip/warning), `Quiz` + `QuizQuestion`, `Steps` (text-only steps).
+- Components (import from `../../components/`): `Callout` (note/tip/warning), `Steps` (text-only steps).
 
 ## Hard rule: no code fences inside JSX bodies
 
 Markdown code fences inside `<Steps>` or any component body **break the Astro 7 Sätteri build**. For step sequences with code, use `### Step N — title` headings with fences between them.
 
-## Quiz (tutorials, required)
-
-3–4 `QuizQuestion`s, answers drawn only from the post's own content:
-
-```jsx
-<Quiz>
-  <QuizQuestion question="…?" options={['a', 'b', 'c']} answer={1}>
-    Explanation shown after answering.
-  </QuizQuestion>
-</Quiz>
-```
-
-## Publish checklist
+## Publish checklist (notes)
 
 1. `npm run check && npm run lint && npm run format && npm test && npm run build` — all green (build regenerates OG images automatically).
 2. Remove `draft: true`.
-3. Commit, push to main (owner's chosen flow), `npm run deploy` (builds, deploys, pings IndexNow).
+3. Commit, push to main (owner's chosen flow) — Workers Builds deploys automatically.
 4. Spot-check the live URL after ~1 min propagation (new asset URLs 404 briefly).

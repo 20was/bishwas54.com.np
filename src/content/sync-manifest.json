@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "20was/self-learn-docs",
+  "sourceCommit": null,
+  "documents": {
+    "net-foundations-01": {
+      "sourcePath": "networking-lab/01-foundations/01-what-networking-is-and-ip-addresses.md",
+      "targetPath": "src/content/tutorials/networking-and-ip-addresses.mdx",
+      "collection": "tutorials",
+      "slug": "networking-and-ip-addresses",
+      "bodyHash": "sha256:f3b7e75e89630ff001c120bb071fbbe5344da27f091310d16f54def44d33d9be",
+      "status": "published"
+    },
+    "net-foundations-02": {
+      "sourcePath": "networking-lab/01-foundations/02-ports.md",
+      "targetPath": "src/content/tutorials/ports.mdx",
+      "collection": "tutorials",
+      "slug": "ports",
+      "bodyHash": "sha256:33ba2ae47efc7f8ca84b471d3e382ae877695d2b328b7f56d8b640e45d3bc215",
+      "status": "published"
+    },
+    "net-foundations-03": {
+      "sourcePath": "networking-lab/01-foundations/03-network-models-and-layers.md",
+      "targetPath": "src/content/tutorials/network-models-and-layers.mdx",
+      "collection": "tutorials",
+      "slug": "network-models-and-layers",
+      "bodyHash": "sha256:86a2622c9d4b4b1c8f3927179c32da15c3b85046f8976aeb82c640c1e2fa7e0b",
+      "status": "published"
+    },
+    "net-foundations-04": {
+      "sourcePath": "networking-lab/01-foundations/04-dns.md",
+      "targetPath": "src/content/tutorials/dns.mdx",
+      "collection": "tutorials",
+      "slug": "dns",
+      "bodyHash": "sha256:632a82a8e70e3a656c2b647a6a81e5c123a5e5725dc627baa29e0b106a378241",
+      "status": "published"
+    },
+    "net-foundations-05": {
+      "sourcePath": "networking-lab/01-foundations/05-dhcp.md",
+      "targetPath": "src/content/tutorials/dhcp.mdx",
+      "collection": "tutorials",
+      "slug": "dhcp",
+      "bodyHash": "sha256:41ee4e1e7bc1d4b6406823b35edde413430cb0df0d91ea6771d422560b0b8a06",
+      "status": "published"
+    },
+    "net-foundations-06": {
+      "sourcePath": "networking-lab/01-foundations/06-mac-addresses-and-arp.md",
+      "targetPath": "src/content/tutorials/mac-addresses-and-arp.mdx",
+      "collection": "tutorials",
+      "slug": "mac-addresses-and-arp",
+      "bodyHash": "sha256:8cdfda657fce63a8bb97aa242f696365e9f57775356a8bb831d2420314a0581f",
+      "status": "published"
+    }
+  }
+}
