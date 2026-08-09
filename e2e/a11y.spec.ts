@@ -4,7 +4,8 @@ import { expect, test } from '@playwright/test';
 const pages = [
   '/',
   '/tutorials/',
-  '/tutorials/networking-and-ip-addresses/',
+  '/tutorials/devops-networking/',
+  '/tutorials/devops-networking/networking-and-ip-addresses/',
   '/notes/',
   '/about/',
   '/search/',

@@ -57,6 +57,9 @@ const jsonLd = [
   breadcrumbJsonLd([
     { name: 'Home', path: '/' },
     { name: 'Tutorials', path: '/tutorials/' },
+    ...(series
+      ? [{ name: series.name, path: `/tutorials/${entry.id.split('/')[0]}/` }]
+      : []),
     { name: entry.data.title, path },
   ]),
 ];
@@ -76,7 +79,8 @@ const jsonLd = [
     {
       series && (
         <p class="meta series-label">
-          {series.name} · part {series.order}
+          <a href={`/tutorials/${entry.id.split('/')[0]}/`}>{series.name}</a> ·
+          part {series.order} of {seriesEntries.length}
         </p>
       )
     }

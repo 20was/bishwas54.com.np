@@ -11,7 +11,9 @@ test('home shows recent writing and navigates to a tutorial', async ({
     .getByRole('link', { name: /Lesson 01/ })
     .first()
     .click();
-  await expect(page).toHaveURL(/\/tutorials\/networking-and-ip-addresses\//);
+  await expect(page).toHaveURL(
+    /\/tutorials\/devops-networking\/networking-and-ip-addresses\//,
+  );
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
     'Lesson 01',
   );
@@ -38,9 +40,20 @@ test('search returns results', async ({ page }) => {
 });
 
 test('series navigation links consecutive lessons', async ({ page }) => {
-  await page.goto('/tutorials/ports/');
+  await page.goto('/tutorials/devops-networking/ports/');
   await page.getByRole('link', { name: /Next in series/ }).click();
   await expect(page).toHaveURL(/network-models-and-layers/);
+});
+
+test('series landing page lists lessons in part order', async ({ page }) => {
+  await page.goto('/tutorials/devops-networking/');
+  const parts = await page.locator('.lessons .meta').allTextContents();
+  const orders = parts
+    .map((t) => t.match(/^Part (\d+)$/)?.[1])
+    .filter(Boolean)
+    .map(Number);
+  expect(orders.length).toBeGreaterThan(1);
+  expect(orders).toEqual([...orders].sort((a, b) => a - b));
 });
 
 test('404 page offers a way back', async ({ page }) => {

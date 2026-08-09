@@ -56,7 +56,10 @@ const fmt = (d: Date) =>
       [...seriesGroups.entries()].map(([name, group]) => (
         <section class="series" aria-label={`Series: ${name}`}>
           <h2 class="meta series-title">
-            Series · {name} — {group.length} part{group.length > 1 ? 's' : ''}
+            <a href={`/tutorials/${group[0]?.id.split('/')[0]}/`}>
+              Series · {name} — {group.length} part
+              {group.length > 1 ? 's' : ''}
+            </a>
           </h2>
           <ul class="posts">
             {group.map((t) => (

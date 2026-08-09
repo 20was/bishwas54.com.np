@@ -1,0 +1,10 @@
+# 301s from the flat tutorial URLs (pre 2026-08-09) to the
+# series-nested scheme. Served by Cloudflare Workers static assets.
+# Future URL migrations append here — never delete old lines.
+/tutorials/dhcp/ /tutorials/devops-networking/dhcp/ 301
+/tutorials/dns/ /tutorials/devops-networking/dns/ 301
+/tutorials/mac-addresses-and-arp/ /tutorials/devops-networking/mac-addresses-and-arp/ 301
+/tutorials/network-models-and-layers/ /tutorials/devops-networking/network-models-and-layers/ 301
+/tutorials/networking-and-ip-addresses/ /tutorials/devops-networking/networking-and-ip-addresses/ 301
+/tutorials/ports/ /tutorials/devops-networking/ports/ 301
+/tutorials/routing/ /tutorials/devops-networking/routing/ 301

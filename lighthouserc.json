@@ -4,7 +4,7 @@
       "staticDistDir": "./dist",
       "url": [
         "http://localhost/index.html",
-        "http://localhost/tutorials/networking-and-ip-addresses/index.html",
+        "http://localhost/tutorials/devops-networking/networking-and-ip-addresses/index.html",
         "http://localhost/tutorials/index.html"
       ],
       "numberOfRuns": 2

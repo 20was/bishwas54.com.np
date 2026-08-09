@@ -3,8 +3,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { normalizeDoc } from './contract.mjs';
-import { emptyManifest, hashBody, nextManifest, planSync } from './core.mjs';
+import { normalizeDoc, seriesSlug } from './contract.mjs';
+import {
+  checkSeriesContiguity,
+  emptyManifest,
+  hashBody,
+  nextManifest,
+  planSync,
+} from './core.mjs';
 import { applyPlan, readManifest, writeManifest } from './apply.mjs';
 
 const note = (
@@ -52,16 +58,25 @@ describe('contract', () => {
     expect(noBody.errors?.join()).toMatch(/body is empty/);
   });
 
-  it('derives slug, title, series and order from filename/h1/folder', () => {
-    const r = normalizeDoc(
+  it('series lesson gets a nested route, standalone a flat one', () => {
+    const inSeries = normalizeDoc(
       note(PUBLISHABLE),
       'networking-lab/01-foundations/07-routing.md',
     );
-    expect(r.publishable).toBe(true);
-    expect(r.doc.slug).toBe('routing');
-    expect(r.doc.title).toBe('Lesson 07 — Routing');
-    expect(r.doc.series).toEqual({ name: 'DevOps Networking', order: 7 });
-    expect(r.doc.collection).toBe('tutorials');
+    expect(inSeries.doc.route).toBe('devops-networking/routing');
+    expect(inSeries.doc.series).toEqual({
+      name: 'DevOps Networking',
+      order: 7,
+    });
+
+    const standalone = normalizeDoc(note(PUBLISHABLE), 'essays/routing.md');
+    expect(standalone.doc.series).toBeUndefined();
+    expect(standalone.doc.route).toBe('routing');
+  });
+
+  it('seriesSlug is deterministic and URL-safe', () => {
+    expect(seriesSlug('DevOps Networking — AWS')).toBe('devops-networking-aws');
+    expect(seriesSlug('DevOps Networking')).toBe('devops-networking');
   });
 
   it('explicit frontmatter overrides derived values and is flagged explicit', () => {
@@ -103,19 +118,19 @@ describe('contract', () => {
   });
 });
 
-describe('planSync', () => {
-  const doc = (over = {}) => ({
+const doc = (over = {}) => {
+  const base = {
     id: 'net-foundations-07',
     status: 'published',
     type: 'tutorial',
     collection: 'tutorials',
     slug: 'routing',
     title: 'Routing',
-    description: 'd',
+    description: 'How routers pick paths.',
     tags: ['networking'],
-    series: { name: 'DevOps Networking', order: 7 },
+    series: { name: 'DevOps Networking', order: 1 },
     sourcePath: 'networking-lab/01-foundations/07-routing.md',
-    body: 'body v1',
+    body: 'Routing body.',
     explicit: {
       title: false,
       description: false,
@@ -124,21 +139,33 @@ describe('planSync', () => {
       series: false,
     },
     ...over,
-  });
-  const manifestWith = (d) => ({
-    ...emptyManifest(),
-    documents: {
-      [d.id]: {
+  };
+  base.route =
+    over.route ??
+    (base.series ? `${seriesSlug(base.series.name)}/${base.slug}` : base.slug);
+  base.bodyHash = hashBody(base.body);
+  return base;
+};
+
+const manifestWith = (...docs) => ({
+  ...emptyManifest(),
+  documents: Object.fromEntries(
+    docs.map((d) => [
+      d.id,
+      {
         sourcePath: d.sourcePath,
-        targetPath: `src/content/tutorials/${d.slug}.mdx`,
+        targetPath: `src/content/tutorials/${d.route}.mdx`,
         collection: d.collection,
         slug: d.slug,
+        route: d.route,
         bodyHash: hashBody(d.body),
         status: d.status,
       },
-    },
-  });
+    ]),
+  ),
+});
 
+describe('planSync', () => {
   it('new id → create; same id+body → unchanged (idempotent)', () => {
     const d = doc();
     expect(planSync([d], emptyManifest()).creates).toHaveLength(1);
@@ -156,12 +183,18 @@ describe('planSync', () => {
     expect(moved.creates).toHaveLength(0);
   });
 
-  it('slug change on published id → error (URLs frozen)', () => {
+  it('slug change on published id → frozen-route error', () => {
     const plan = planSync([doc({ slug: 'ip-routing' })], manifestWith(doc()));
     expect(plan.errors.join()).toMatch(/frozen/);
   });
 
-  it('duplicate ids and duplicate slugs → errors', () => {
+  it('series/order change that alters the route → frozen-route error', () => {
+    const demoted = doc({ series: undefined });
+    const plan = planSync([demoted], manifestWith(doc()));
+    expect(plan.errors.join()).toMatch(/frozen/);
+  });
+
+  it('duplicate ids and duplicate routes → errors', () => {
     const a = doc();
     expect(
       planSync(
@@ -174,12 +207,73 @@ describe('planSync', () => {
         [a, doc({ id: 'net-2', sourcePath: 'other.md' })],
         emptyManifest(),
       ).errors.join(),
-    ).toMatch(/duplicate slug/);
+    ).toMatch(/duplicate route/);
   });
 
-  it('slug claimed by different published id → error', () => {
+  it('route claimed by different published id → error', () => {
     const plan = planSync([doc({ id: 'net-new' })], manifestWith(doc()));
     expect(plan.errors.join()).toMatch(/already belongs to published id/);
+  });
+
+  it('standalone slug colliding with a series landing segment → error', () => {
+    const lesson = doc();
+    const standalone = doc({
+      id: 'essay-1',
+      slug: 'devops-networking',
+      series: undefined,
+      sourcePath: 'essays/devops-networking.md',
+    });
+    const plan = planSync([lesson, standalone], emptyManifest());
+    expect(plan.errors.join()).toMatch(
+      /both a standalone post and a series landing/,
+    );
+  });
+
+  it('series with a gap (1 and 3, no 2) → contiguity error naming the hole', () => {
+    const one = doc({
+      id: 'a',
+      slug: 'l1',
+      series: { name: 'S', order: 1 },
+      sourcePath: 's/1.md',
+    });
+    const three = doc({
+      id: 'c',
+      slug: 'l3',
+      series: { name: 'S', order: 3 },
+      sourcePath: 's/3.md',
+    });
+    const plan = planSync([one, three], emptyManifest());
+    expect(plan.errors.join()).toMatch(/missing part\(s\): 2/);
+    expect(checkSeriesContiguity([one, three])).toHaveLength(1);
+    expect(
+      checkSeriesContiguity([
+        one,
+        doc({
+          id: 'b',
+          slug: 'l2',
+          series: { name: 'S', order: 2 },
+          sourcePath: 's/2.md',
+        }),
+      ]),
+    ).toHaveLength(0);
+  });
+
+  it('duplicate order in a series → contiguity error', () => {
+    const a = doc({
+      id: 'a',
+      slug: 'l1',
+      series: { name: 'S', order: 1 },
+      sourcePath: 's/1.md',
+    });
+    const b = doc({
+      id: 'b',
+      slug: 'l1b',
+      series: { name: 'S', order: 1 },
+      sourcePath: 's/1b.md',
+    });
+    expect(planSync([a, b], emptyManifest()).errors.join()).toMatch(
+      /duplicate order/,
+    );
   });
 
   it('vanished/unpublished doc → proposed archive, never silent delete', () => {
@@ -192,48 +286,32 @@ describe('planSync', () => {
     });
     expect(archived.documents['net-foundations-07'].status).toBe('archived');
   });
+
+  it('nextManifest keeps previousRoutes from a prior migration', () => {
+    const d = doc();
+    const m = manifestWith(d);
+    m.documents[d.id].previousRoutes = ['routing'];
+    const after = nextManifest(m, planSync([d], m), {});
+    expect(after.documents[d.id].previousRoutes).toEqual(['routing']);
+    expect(after.documents[d.id].route).toBe('devops-networking/routing');
+  });
 });
 
 describe('applyPlan', () => {
   let root;
-  const doc = (over = {}) => ({
-    id: 'net-foundations-07',
-    status: 'published',
-    type: 'tutorial',
-    collection: 'tutorials',
-    slug: 'routing',
-    title: 'Routing',
-    description: 'How routers pick paths.',
-    tags: ['networking'],
-    series: { name: 'DevOps Networking', order: 7 },
-    sourcePath: 'networking-lab/01-foundations/07-routing.md',
-    body: 'Routing body.',
-    bodyHash: hashBody('Routing body.'),
-    explicit: {
-      title: false,
-      description: false,
-      tags: false,
-      level: false,
-      series: false,
-    },
-    ...over,
-  });
+  const TARGET = 'src/content/tutorials/devops-networking/routing.mdx';
 
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), 'sync-test-'));
     await mkdir(join(root, 'src/content/tutorials'), { recursive: true });
-    await mkdir(join(root, 'src/content'), { recursive: true });
   });
 
-  it('create then no-op rerun writes identical file (idempotent end to end)', async () => {
+  it('create writes into the series subdirectory; rerun is a no-op', async () => {
     const d = doc();
     const plan = planSync([d], emptyManifest());
     await applyPlan(plan, emptyManifest(), { root });
     await writeManifest(root, nextManifest(emptyManifest(), plan, {}));
-    const first = await readFile(
-      join(root, 'src/content/tutorials/routing.mdx'),
-      'utf8',
-    );
+    const first = await readFile(join(root, TARGET), 'utf8');
     expect(first).toMatch(/sourceId: net-foundations-07/);
     expect(first).toMatch(/Routing body\./);
 
@@ -251,18 +329,14 @@ describe('applyPlan', () => {
     await applyPlan(plan, emptyManifest(), { root });
     const manifest = nextManifest(emptyManifest(), plan, {});
 
-    // Site-side curation: someone improved the description on the blog.
-    const file = join(root, 'src/content/tutorials/routing.mdx');
+    const file = join(root, TARGET);
     const curated = (await readFile(file, 'utf8')).replace(
       'description: How routers pick paths.',
       'description: Curated on site.',
     );
     await writeFile(file, curated);
 
-    const v2 = doc({
-      body: 'Routing body v2.',
-      bodyHash: hashBody('Routing body v2.'),
-    });
+    const v2 = doc({ body: 'Routing body v2.' });
     await applyPlan(planSync([v2], manifest), manifest, { root });
     const after = await readFile(file, 'utf8');
     expect(after).toMatch(/Routing body v2\./);
@@ -277,21 +351,20 @@ describe('applyPlan', () => {
     const manifest = nextManifest(emptyManifest(), plan, {});
     const v2 = doc({
       body: 'v2',
-      bodyHash: hashBody('v2'),
       description: 'Author truth.',
       explicit: { ...d.explicit, description: true },
     });
     await applyPlan(planSync([v2], manifest), manifest, { root });
-    const after = await readFile(
-      join(root, 'src/content/tutorials/routing.mdx'),
-      'utf8',
-    );
+    const after = await readFile(join(root, TARGET), 'utf8');
     expect(after).toMatch(/description: Author truth\./);
   });
 
-  it('refuses to overwrite a manual (untracked) file with the same slug', async () => {
+  it('refuses to overwrite a manual (untracked) file with the same route', async () => {
+    await mkdir(join(root, 'src/content/tutorials/devops-networking'), {
+      recursive: true,
+    });
     await writeFile(
-      join(root, 'src/content/tutorials/routing.mdx'),
+      join(root, TARGET),
       '---\ntitle: Hand-written\n---\n\nManual content.\n',
     );
     const plan = planSync([doc()], emptyManifest());
@@ -301,8 +374,11 @@ describe('applyPlan', () => {
   });
 
   it('refuses cross-id overwrite even when sync-tracked', async () => {
+    await mkdir(join(root, 'src/content/tutorials/devops-networking'), {
+      recursive: true,
+    });
     await writeFile(
-      join(root, 'src/content/tutorials/routing.mdx'),
+      join(root, TARGET),
       '---\ntitle: Other\nsourceId: net-other\n---\n\nBody.\n',
     );
     const plan = planSync([doc()], emptyManifest());
@@ -318,10 +394,7 @@ describe('applyPlan', () => {
     const manifest = nextManifest(emptyManifest(), plan, {});
     const gone = planSync([], manifest);
     await applyPlan(gone, manifest, { root, applyArchives: true });
-    const after = await readFile(
-      join(root, 'src/content/tutorials/routing.mdx'),
-      'utf8',
-    );
+    const after = await readFile(join(root, TARGET), 'utf8');
     expect(after).toMatch(/archived: true/);
     expect(after).toMatch(/Routing body\./);
   });
@@ -329,8 +402,6 @@ describe('applyPlan', () => {
   it('dry run writes nothing', async () => {
     const plan = planSync([doc()], emptyManifest());
     await applyPlan(plan, emptyManifest(), { root, dryRun: true });
-    await expect(
-      readFile(join(root, 'src/content/tutorials/routing.mdx'), 'utf8'),
-    ).rejects.toThrow();
+    await expect(readFile(join(root, TARGET), 'utf8')).rejects.toThrow();
   });
 });

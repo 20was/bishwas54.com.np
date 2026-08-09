@@ -31,6 +31,17 @@ import {
 export const ID_RE = /^[a-z0-9][a-z0-9-]*$/;
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
 
+/** Deterministic slug for a series name: 'DevOps Networking — AWS' →
+ *  'devops-networking-aws'. Series lessons publish under
+ *  /<collection>/<seriesSlug>/<slug>/; standalone posts under
+ *  /<collection>/<slug>/ — the URL itself tells them apart. */
+export function seriesSlug(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 const KNOWN_KEYS = new Set([
   'id',
   'publish',
@@ -184,6 +195,10 @@ export function normalizeDoc(raw, sourcePath) {
   const sectionFolder = basename(dirname(sourcePath));
   const seriesName = data.series ?? SERIES_BY_FOLDER[sectionFolder];
   const order = data.order ?? Number(file.match(/^(\d+)-/)?.[1] ?? 0);
+  const series =
+    seriesName && order > 0 ? { name: seriesName, order } : undefined;
+  /** Collection-relative route: '<seriesSlug>/<slug>' or '<slug>'. Frozen once published. */
+  const route = series ? `${seriesSlug(series.name)}/${slug}` : slug;
 
   return {
     publishable: true,
@@ -204,11 +219,12 @@ export function normalizeDoc(raw, sourcePath) {
       type,
       collection,
       slug,
+      route,
       title,
       description: data.description ?? firstSentence(body) ?? title,
       tags: data.tags ?? DEFAULT_TAGS,
       level: data.level,
-      series: seriesName && order > 0 ? { name: seriesName, order } : undefined,
+      series,
       sourcePath,
       body,
     },

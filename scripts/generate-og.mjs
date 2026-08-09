@@ -4,7 +4,7 @@
  * SVG), sharp rasterizes to PNG. Output: public/og/ (gitignored).
  */
 import { mkdir, readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import satori from 'satori';
 import sharp from 'sharp';
 
@@ -106,17 +106,16 @@ async function renderTo(file, { title, kicker }) {
 async function collect(collection, kicker) {
   const dir = join(ROOT, 'src', 'content', collection);
   const outDir = join(OUT, collection);
-  await mkdir(outDir, { recursive: true });
-  const files = (await readdir(dir).catch(() => [])).filter((f) =>
-    f.endsWith('.mdx'),
-  );
+  // Series lessons nest one level (<series>/<slug>.mdx) — walk recursively.
+  const files = (
+    await readdir(dir, { recursive: true }).catch(() => [])
+  ).filter((f) => f.endsWith('.mdx'));
   for (const file of files) {
     const source = await readFile(join(dir, file), 'utf8');
-    const title =
-      source.match(/^title:\s*['"]?(.+?)['"]?\s*$/m)?.[1] ??
-      file.replace('.mdx', '');
-    const slug = file.replace('.mdx', '');
-    await renderTo(join(outDir, `${slug}.png`), { title, kicker });
+    const id = file.replace('.mdx', '');
+    const title = source.match(/^title:\s*['"]?(.+?)['"]?\s*$/m)?.[1] ?? id;
+    await mkdir(dirname(join(outDir, file)), { recursive: true });
+    await renderTo(join(outDir, `${id}.png`), { title, kicker });
   }
   return files.length;
 }

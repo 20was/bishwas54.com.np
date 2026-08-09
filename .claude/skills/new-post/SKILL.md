@@ -57,8 +57,13 @@ sections, quiz components, or Quiz JSON-LD to anything.
 - Publication is decided ONLY by `publish: true` + `id` in the lab note's
   frontmatter. Empty files and unmarked files are skipped — never invent
   content for them.
-- Identity = `id` (see `src/content/sync-manifest.json`). Slugs/URLs are
-  frozen; the sync errors on slug changes. Folder moves don't duplicate.
+- Identity = `id` (see `src/content/sync-manifest.json`). Routes/URLs are
+  frozen; the sync errors on slug OR series changes that would move a
+  URL. Folder moves don't duplicate.
+- Routes: series lessons `/tutorials/<series-slug>/<slug>/` (+ landing
+  page at `/tutorials/<series-slug>/`); standalone `/tutorials/<slug>/`.
+  Series orders must be contiguous 1..n — publishing part 3 before part 2
+  fails validation. URL migrations append 301s to `public/_redirects`.
 - Frontmatter overlay: `description`/`tags`/`level`/`series` may be
   curated here and survive syncs (unless the lab note sets them
   explicitly). Body edits here are ALWAYS lost on next sync.

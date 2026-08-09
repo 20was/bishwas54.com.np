@@ -51,4 +51,4 @@ export const DEFAULT_TAGS = ['networking', 'basics', 'devops'];
 
 export const MANIFEST_PATH = 'src/content/sync-manifest.json';
 
-export const MANIFEST_SCHEMA_VERSION = 1;
+export const MANIFEST_SCHEMA_VERSION = 2;
