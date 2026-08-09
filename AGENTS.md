@@ -16,7 +16,7 @@ Personal learning notebook of Bishwas Adhikari: beginner-friendly tutorials (eac
 - `npm run check` — astro check (types)
 - `npm run lint` / `npm run format` / `npm run format:check`
 - `npm run build` — static build to `dist/`
-- `npm run deploy` — build + `wrangler deploy` (requires Cloudflare auth)
+- Deploys: push to `main` auto-builds + deploys via Cloudflare Workers Builds (since 2026-08-09). `npm run deploy` still works for manual/local deploys but is normally unnecessary.
 
 ## Conventions
 
