@@ -190,16 +190,29 @@ hr {
   margin-top: var(--space-3);
 }
 
+/* Section headings switch to the sans stack: the family contrast (sans
+   headings over serif body) is what makes the hierarchy legible at a
+   glance — size alone wasn't enough, especially in dark mode. */
 .prose h2 {
+  font-family: var(--font-sans);
   font-size: var(--step-2);
-  margin-top: var(--space-5);
-  font-weight: 650;
+  margin-top: var(--space-6);
+  font-weight: 700;
+  letter-spacing: -0.015em;
 }
 
 .prose h3 {
+  font-family: var(--font-sans);
   font-size: var(--step-1);
-  margin-top: var(--space-4);
-  font-weight: 600;
+  margin-top: var(--space-5);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* Bold lead-ins ("Option A — ...") get heading ink so they read as
+   markers, not just heavier body text. */
+.prose strong {
+  color: var(--heading);
 }
 
 .prose ul,
