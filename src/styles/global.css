@@ -24,12 +24,18 @@
 
 /* Metric-adjusted local fallback shown while Literata loads — shrinks
    the font-swap layout shift. */
+/* size-adjust tuned by measuring rendered layout drift against real
+   Literata (asc 1177 / desc 308 / upm 1000; overrides = metric ÷
+   size-adjust): 107% gives 0px element drift on a full lesson page.
+   The old 97% shrank Georgia while Literata is ~8% wider — every line
+   re-wrapped on font swap (CLS 0.24 on slow CI runners). */
 @font-face {
   font-family: 'Literata-fallback';
   src: local('Georgia');
-  size-adjust: 97%;
-  ascent-override: 100%;
-  descent-override: 27%;
+  size-adjust: 107%;
+  ascent-override: 110%;
+  descent-override: 28.79%;
+  line-gap-override: 0%;
 }
 
 /* Base */
