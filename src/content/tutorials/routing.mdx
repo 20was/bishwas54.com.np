@@ -1,0 +1,207 @@
+---
+title: Lesson 07 — Routing
+description: 'Since Lesson 01, one phrase has carried the whole story: junctions read the address and "pick a direction." The MAC lesson sharpened it — the IP envelope crosses the world untouched while each hop reads 140.82.121.4 and decides which way to pass it.'
+datePublished: 2026-08-09
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking
+  order: 7
+sourceId: net-foundations-07
+sourcePath: networking-lab/01-foundations/07-routing.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 4 — the local-or-gateway decision, routing tables, the default route ladder, how tables write themselves
+> **Builds on:** Lesson 05 (the gateway from the DHCP bundle), Lesson 06 (MAC envelopes rewritten at every hop)
+
+---
+
+## Table of contents
+
+1. [The last "somehow"](#the-last-somehow)
+2. [Junction = router](#junction--router)
+3. [The router's one question](#the-routers-one-question)
+4. [The decision starts at your laptop](#the-decision-starts-at-your-laptop)
+5. [Inside the router — the table](#inside-the-router--the-table)
+6. [The default route, and the ladder of defaults](#the-default-route-and-the-ladder-of-defaults)
+7. [The top of the ladder — where routers must know](#the-top-of-the-ladder--where-routers-must-know)
+8. [Who writes a million lines?](#who-writes-a-million-lines)
+9. [Where this appears in real work](#where-this-appears-in-real-work)
+10. [Easy to get wrong](#easy-to-get-wrong)
+11. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+12. [Terms locked in](#terms-locked-in)
+13. [Deliberately not covered yet](#deliberately-not-covered-yet)
+14. [Sources](#sources)
+
+---
+
+## The last "somehow"
+
+Since Lesson 01, one phrase has carried the whole story: junctions read the address and *"pick a direction."* The MAC lesson sharpened it — the IP envelope crosses the world untouched while each hop reads `140.82.121.4` and decides which way to pass it. This lesson explains the deciding.
+
+---
+
+## Junction = router
+
+A small unification first. These lessons said "junction" for the boxes along the path and "router" for the box in the house. Truth: **they are the same thing.** Every junction on Earth is a router. The home router is simply the first one on the path.
+
+---
+
+## The router's one question
+
+A router's whole job is one repeated question:
+
+> *An envelope for address X just arrived. Which of my exits does it leave through?*
+
+Note the shape: a router has a handful of **exits** — the home router has two (the house side and the internet side); a big city router has dozens — and it must map any of 4.3 billion possible addresses onto one of them. In a fraction of a millisecond, millions of times per second.
+
+---
+
+## The decision starts at your laptop
+
+Before any router touches the envelope, the *laptop* makes the first routing decision. It has exactly two options:
+
+**Option A — the destination is inside the house.** The laptop `192.168.1.47` sends to the TV `192.168.1.53`. Same network. No router needed at all: ARP-shout for the TV's MAC, wrap the Layer 2 envelope **directly to the TV's chip**, done. The message never visits the router.
+
+**Option B — the destination is outside.** Sending to `140.82.121.4`. Not one of the house numbers. The laptop cannot deliver this itself — so it does the only thing it can: wrap the Layer 2 envelope to **the way out** — `192.168.1.1`, the gateway from the DHCP bundle. "Not mine to solve. Router's problem now."
+
+How does the laptop know inside from outside? The DHCP bundle told it — alongside the number came a description of *which addresses count as the house* (roughly: "anything starting 192.168.1 is local"). The exact notation for writing such ranges is its own small language — next lesson. For now: the laptop knows the house's range, and everything else goes to the gateway.
+
+This two-way choice — *deliver directly, or hand to the gateway* — is routing at its smallest. Every computer on Earth makes it for every single message.
+
+---
+
+## Inside the router — the table
+
+The envelope is now at the home router. The router keeps the core data structure of this entire lesson: a **routing table** — a short list of rules, each one saying *"addresses like this → leave through that exit."*
+
+The home router's entire table, essentially:
+
+```
+destinations in 192.168.1.x        →  exit: the house side
+everything else                    →  exit: the internet side (toward the ISP)
+```
+
+Two lines. `140.82.121.4` doesn't match line one, so line two catches it: out toward the internet provider.
+
+---
+
+## The default route, and the ladder of defaults
+
+That second line is the most important idea of the lesson. Its official name is the **default route** — the rule that catches *everything not matched by anything more specific*. It is the router's version of "not mine to solve, pass it up." The laptop had a way out; the router has one too — its own gateway, pointing at the ISP.
+
+**A message leaving the house climbs a ladder of defaults.** Laptop → home router → ISP's neighbourhood router → ISP's city router... each device knowing almost nothing, each one having a "somebody bigger will know" rule.
+
+Ignorance, organised well, gets you remarkably far.
+
+---
+
+## The top of the ladder — where routers must know
+
+Follow the ladder up and an obvious problem appears: at the top — the big routers where continents' traffic meets — there *is* no "somebody bigger." A default route pointing up works until the top; up there, the routers must actually **know**.
+
+And they do. A core internet router's table is not two lines — it is roughly a **million** lines, looking like:
+
+```
+addresses 140.82.112.x – 140.82.127.x   →  exit 7  (toward GitHub's provider)
+addresses 8.8.8.x                        →  exit 3  (toward Google)
+addresses 185.199.108.x – ...            →  exit 7
+... about a million more ...
+```
+
+The lines describe **ranges**, not individual addresses — nobody lists 4.3 billion entries. This is where Lesson 01's block system pays off: IP addresses are handed out in *blocks* (IANA → regional registries → providers), so whole blocks live in one place, and one table line covers thousands of computers. GitHub's block, Google's block — one rule each.
+
+The full picture of a journey: **a ladder of defaults going up, until the envelope reaches routers specific enough to know the destination's block — then increasingly specific hops going down** into GitHub's provider, GitHub's building, GitHub's computer. Up the ignorance ladder, down the knowledge ladder.
+
+---
+
+## Who writes a million lines?
+
+The home router's two-line table was written by nobody — it is automatic from the DHCP setup. But a million-line core table? No human types that.
+
+**The routers tell each other.** GitHub's provider announces to its neighbouring routers: *"blocks 140.82.112–127 live behind me."* Those neighbours pass the announcement to *their* neighbours, noting "...reachable through them." Announcements ripple outward across the planet, each router assembling its own table from everything it has heard — and when a link dies somewhere, withdrawal announcements ripple the same way and tables update themselves within seconds to minutes.
+
+The agreed script for these announcements is called **BGP** — file the name away; the idea is what matters:
+
+> **The internet's map is not designed or stored anywhere central. It is continuously gossiped into existence by the routers themselves.**
+
+This is also the honest reason the internet survives cut cables and dead datacenters: routes are not fixed paths. Every router re-derives "best exit" from current announcements. Today's envelope for `140.82.121.4` might cross a different ocean cable than yesterday's identical envelope, and nobody planned that — the tables just said so today.
+
+(One consequence filed for later: big internet outages sometimes contain the phrase "BGP announcement" — a bad announcement ripples exactly as efficiently as a good one. Noted; not this lesson's depth.)
+
+---
+
+## Where this appears in real work
+
+Soon, and concretely: in the AWS part of this track, routing tables get **written by hand.** A cloud network is a private little internet, and AWS hands over the table editor: lines saying "this range → stay internal" and "everything else → the internet door." A wrong line makes half the project unreachable in exactly the ways Lesson 01 promised. Everything in this lesson — table, ranges, default route, gateway — reappears there as things that get typed.
+
+---
+
+## Easy to get wrong
+
+**Local delivery never touches the router.** Laptop-to-TV goes chip-to-chip. If two devices in one house can't reach each other, the router's internet side is irrelevant to the problem.
+
+**A router only ever picks the next exit.** No router knows the full path. The "route" a message takes is the accumulated result of independent per-hop decisions, not a plan anyone holds.
+
+**The default route is a rule, not a failure.** Matching "everything else" is how almost all traffic almost everywhere is handled. Small routers are *supposed* to know nothing.
+
+**More specific wins.** When both a specific line and the default could match, the specific line is used. The default only catches what nothing else claimed. (This becomes a daily fact of life in cloud routing tables.)
+
+**Paths are not stable.** Two identical messages may travel different physical routes minutes apart. Debugging with the assumption "it goes the same way every time" fails.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| "Junctions pick a direction" | Vague magic in the middle of the internet | A table lookup: match the address against range rules, take the exit |
+| The home router | The internet box | A two-line routing table plus a gateway of its own — bottom rung of a ladder of defaults |
+| How the internet knows where things are | Some central map | No map exists; routers gossip announcements and each assembles its own table |
+| Resilience | The internet mostly works, somehow | Routes re-derive continuously from live announcements; broken links get gossiped away |
+| The laptop's role | Sends messages, that's all | Makes the first routing decision on every single message: local chip-to-chip, or gateway |
+| Ranges in tables | — | The block system from Lesson 01 is what makes million-line tables possible at all |
+
+---
+
+## Terms locked in
+
+- **router** — the official name for every junction; the home "internet box" is one
+- **exit (interface)** — one of a router's connections; the table maps addresses to exits
+- **routing table** — the list of "addresses like this → that exit" rules inside every computer and router
+- **default route** — the catch-everything-else rule; the ladder upward
+- **gateway** — where a device's default route points; the way out (from the DHCP bundle, now fully explained)
+- **announcement** — a router telling neighbours which blocks live behind it
+- **BGP** — the agreed script routers use to gossip announcements; name filed, depth deferred
+
+---
+
+## Deliberately not covered yet
+
+- **The range notation** — how "192.168.1.x" and block ranges are properly written: subnets and CIDR, next lesson
+- **NAT** — still owed; the reply's journey back into the house, lesson 09
+- **BGP mechanics and BGP-caused outages** — the name is enough for now
+- **Writing routing tables in AWS** — Part 2, where this lesson becomes hands-on
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| IP routing fundamentals | RFC 1122, section 3.3.1 (routing outbound datagrams) | https://www.rfc-editor.org/rfc/rfc1122.html |
+| BGP, the announcement protocol | RFC 4271 | https://www.rfc-editor.org/rfc/rfc4271.html |
+| Live global routing table size (~1M lines) | CIDR Report (updated continuously) | https://www.cidr-report.org/as2.0/ |
+| Readable overview | Cloudflare Learning — What is routing? | https://www.cloudflare.com/learning/network-layer/what-is-routing/ |
+
+> **Source note:** the CIDR Report link shows the actual current size of the global routing table — the "million lines" figure can be checked live there.
+
+---
+
+*End of Lesson 07. Next: subnets and CIDR — the little language ranges are written in.*

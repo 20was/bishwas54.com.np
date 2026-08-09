@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "sourceRepository": "20was/self-learn-docs",
-  "sourceCommit": null,
+  "sourceCommit": "b4b6eb7cab72dea00a553335f7eef0457d2e61f5",
   "documents": {
     "net-foundations-01": {
       "sourcePath": "networking-lab/01-foundations/01-what-networking-is-and-ip-addresses.md",
@@ -49,6 +49,14 @@
       "collection": "tutorials",
       "slug": "mac-addresses-and-arp",
       "bodyHash": "sha256:8cdfda657fce63a8bb97aa242f696365e9f57775356a8bb831d2420314a0581f",
+      "status": "published"
+    },
+    "net-foundations-07": {
+      "sourcePath": "networking-lab/01-foundations/07-routing.md",
+      "targetPath": "src/content/tutorials/routing.mdx",
+      "collection": "tutorials",
+      "slug": "routing",
+      "bodyHash": "sha256:59af7bd994923c7dd1a98f1b75174f01dbd5cada4d6f8551d17a24be96cae060",
       "status": "published"
     }
   }
