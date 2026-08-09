@@ -19,8 +19,39 @@ const notes = (
   (a, b) => b.data.datePublished.getTime() - a.data.datePublished.getTime(),
 );
 
+/* A series shows as ONE card (dated by its newest lesson, linking to its
+ * landing page) so the home list stays a mix of works, not a flood of
+ * same-day parts. Standalone tutorials and notes list individually. */
+const bySeries = new Map<string, typeof tutorials>();
+const standaloneTutorials: typeof tutorials = [];
+for (const t of tutorials) {
+  const segment = t.id.includes('/') ? t.id.split('/')[0]! : undefined;
+  if (segment) bySeries.set(segment, [...(bySeries.get(segment) ?? []), t]);
+  else standaloneTutorials.push(t);
+}
+
+const seriesCards = [...bySeries.entries()].map(([segment, lessons]) => {
+  const parts = lessons.sort(
+    (a, b) => (a.data.series?.order ?? 0) - (b.data.series?.order ?? 0),
+  );
+  const latest = [...parts].sort(
+    (a, b) =>
+      (b.data.dateUpdated ?? b.data.datePublished).getTime() -
+      (a.data.dateUpdated ?? a.data.datePublished).getTime(),
+  )[0]!;
+  const name = parts[0]!.data.series?.name ?? segment;
+  return {
+    title: name,
+    description: `${parts.length}-part series, in order. Latest: ${latest.data.title}.`,
+    date: latest.data.dateUpdated ?? latest.data.datePublished,
+    href: `/tutorials/${segment}/`,
+    kind: `Series · ${parts.length} parts`,
+  };
+});
+
 const recent = [
-  ...tutorials.map((e) => ({
+  ...seriesCards,
+  ...standaloneTutorials.map((e) => ({
     title: e.data.title,
     description: e.data.description,
     date: e.data.datePublished,

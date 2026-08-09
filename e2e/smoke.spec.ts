@@ -1,11 +1,14 @@
 import { expect, test } from '@playwright/test';
 
-test('home shows recent writing and navigates to a tutorial', async ({
+test('home shows the series card and navigates through it to a lesson', async ({
   page,
 }) => {
   await page.goto('/');
   await expect(page).toHaveTitle(/Bishwas Adhikari/);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+  await page.getByRole('link', { name: 'DevOps Networking' }).first().click();
+  await expect(page).toHaveURL(/\/tutorials\/devops-networking\//);
 
   await page
     .getByRole('link', { name: /Lesson 01/ })
