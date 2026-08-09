@@ -34,6 +34,18 @@ Bishwas's notes are published **word-for-word**. Never condense, rewrite,
    diff against the source minus h1 — must match exactly.
 5. `src/content/` is in `.prettierignore` — keep it there.
 
+## AUTOMATED since 2026-08-09 — conversion usually needs no session
+
+Pushing lesson notes to `20was/self-learn-docs` triggers the pipeline:
+dispatch → site repo `sync-lessons.yml` → `scripts/convert-lessons.mjs`
+(mechanical verbatim, preserves frontmatter/quiz, stamps dateUpdated,
+skips 0-byte stubs, SECTIONS + SLUG_OVERRIDES maps inside) → Claude
+action appends quizzes to new lessons → build gate → push → auto-deploy.
+Manual equivalents: `npm run sync-lessons` locally, or Actions →
+"Sync lessons from study lab" → Run workflow. If a manual conversion IS
+requested, prefer running the script over hand-converting. New lab
+section folder ⇒ add it to SECTIONS in the script first.
+
 ## Series conversion (his study lab → site)
 
 Study lab: `/Users/bishwas/Desktop/Self-Learn-Docs/networking-lab/`
