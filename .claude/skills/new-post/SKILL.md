@@ -28,7 +28,9 @@ Bishwas's notes are published **word-for-word**. Never condense, rewrite,
 
 1. Body = source file byte-for-byte, minus ONLY the top `# h1` line
    (which becomes the frontmatter title). Assemble by script, never retype.
-2. Append `## Check what stuck` + `<Quiz>` (tutorials only) after his text.
+2. Quizzes are DEFERRED (owner, 2026-08-09): do not add quizzes to new
+   lessons unless he asks. Existing quiz sections on published lessons
+   stay and are preserved by the sync script.
 3. The one-sentence frontmatter `description` is the only text you write.
 4. Verify byte-identical: strip frontmatter/imports/quiz from the MDX,
    diff against the source minus h1 — must match exactly.

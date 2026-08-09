@@ -1,9 +1,8 @@
 name: Sync lessons from study lab
 
 # Triggered by a push to 20was/self-learn-docs (repository_dispatch) or
-# manually. Converts new/changed lab notes to verbatim MDX, lets Claude
-# append quizzes to quiz-less lessons, build-gates, then pushes to main —
-# which Workers Builds auto-deploys.
+# manually. Converts new/changed lab notes to verbatim MDX, build-gates,
+# then pushes to main — which Workers Builds auto-deploys.
 
 on:
   repository_dispatch:
@@ -48,25 +47,6 @@ jobs:
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Add quizzes to new lessons (Claude)
-        if: steps.diff.outputs.changed == 'true'
-        continue-on-error: true
-        uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: '--allowed-tools "Read,Write,Edit,Glob,Grep"'
-          prompt: |
-            Some tutorials in src/content/tutorials/ may lack a
-            "## Check what stuck" quiz section. Read the repo skill at
-            .claude/skills/new-post/SKILL.md and follow its quiz rules
-            exactly. For each .mdx tutorial missing that section, append
-            it: 3-4 <QuizQuestion> items whose questions and answers come
-            ONLY from that lesson's own text, in the same JSX style as
-            src/content/tutorials/networking-and-ip-addresses.mdx.
-            NEVER modify the lesson body text itself — it is the owner's
-            verbatim writing. Never touch files that already have a quiz.
-            If every tutorial already has a quiz, do nothing.
 
       - name: Build gate
         if: steps.diff.outputs.changed == 'true'

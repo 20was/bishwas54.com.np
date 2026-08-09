@@ -5,8 +5,8 @@
  * MDX exists on the site whose body is the note byte-for-byte (minus the
  * h1, which becomes the frontmatter title). Existing frontmatter and the
  * "## Check what stuck" quiz section are preserved on update; a body
- * change stamps dateUpdated. New lessons are created without a quiz —
- * a separate step (Claude) appends one.
+ * change stamps dateUpdated. New lessons are created without a quiz
+ * (quizzes are currently deferred; existing quiz sections are kept).
  *
  * No AI here. Deterministic by design so it can run unattended.
  *
