@@ -17,16 +17,6 @@ test('home shows recent writing and navigates to a tutorial', async ({
   );
 });
 
-test('quiz gives feedback on answer', async ({ page }) => {
-  await page.goto('/tutorials/networking-and-ip-addresses/');
-  const firstQuestion = page.locator('quiz-question').first();
-  await firstQuestion.scrollIntoViewIfNeeded();
-  await firstQuestion
-    .getByText('The number identifying one machine on a network')
-    .click();
-  await expect(firstQuestion.locator('.feedback')).toContainText('Correct');
-});
-
 test('theme choice persists across pages and reloads', async ({ page }) => {
   await page.goto('/');
   await page.locator('theme-switch label.sepia').click();

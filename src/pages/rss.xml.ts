@@ -5,15 +5,11 @@ import MarkdownIt from 'markdown-it';
 
 const md = new MarkdownIt({ html: false, linkify: true });
 
-/** Feed body: the post's verbatim markdown with MDX imports and the
- *  interactive quiz section stripped, rendered to plain HTML. */
+/** Feed body: the post's verbatim markdown with MDX imports stripped,
+ *  rendered to plain HTML. */
 function feedHtml(body: string | undefined): string {
   if (!body) return '';
-  const markdown = body
-    .replace(/^import .*$/gm, '')
-    .split('## Check what stuck')[0]!
-    .trim();
-  return md.render(markdown);
+  return md.render(body.replace(/^import .*$/gm, '').trim());
 }
 
 export const GET: APIRoute = async (context) => {

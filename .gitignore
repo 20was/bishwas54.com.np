@@ -26,3 +26,4 @@ firebase-debug.log
 public/og/
 test-results/
 playwright-report/
+.lighthouseci/
