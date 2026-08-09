@@ -10,17 +10,17 @@
   --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
 
-  /* Fluid type scale (minor third-ish, 17px → 19px base) */
-  --step--1: clamp(0.9rem, 0.87rem + 0.15vw, 0.98rem);
-  --step-0: clamp(1.0625rem, 1rem + 0.35vw, 1.1875rem);
-  --step-1: clamp(1.25rem, 1.19rem + 0.45vw, 1.45rem);
-  --step-2: clamp(1.5rem, 1.4rem + 0.6vw, 1.8rem);
-  --step-3: clamp(1.85rem, 1.7rem + 0.9vw, 2.3rem);
+  /* Fluid type scale (minor third-ish, 18px → 20px base) */
+  --step--1: clamp(0.95rem, 0.91rem + 0.18vw, 1.05rem);
+  --step-0: clamp(1.125rem, 1.05rem + 0.4vw, 1.25rem);
+  --step-1: clamp(1.3rem, 1.23rem + 0.5vw, 1.55rem);
+  --step-2: clamp(1.55rem, 1.45rem + 0.65vw, 1.9rem);
+  --step-3: clamp(1.95rem, 1.78rem + 1vw, 2.5rem);
 
   /* Layout — one column, everywhere. Nav, footer and content share the
      exact same width and edges on every page; the article TOC hangs in
      the left gutter outside the column on wide screens. */
-  --measure: 44rem; /* ~70ch of serif body */
+  --measure: 48rem; /* ~72ch of serif body at the larger base size */
   --margin-col: 14rem; /* the notebook margin (wide screens) */
   --margin-gap: 3rem;
   /* Every page — header, footer, and content — spans exactly the article
@@ -38,6 +38,7 @@
   --bg: #faf9f5;
   --bg-raised: #f1efe8;
   --text: #211f1a;
+  --heading: #12100c;
   --text-soft: #675f4f;
   --line: #e3e0d6;
   --line-strong: #c9c5b8;
@@ -52,6 +53,7 @@
   --bg: #f6ecd9;
   --bg-raised: #eee1c8;
   --text: #46382a;
+  --heading: #2e2216;
   --text-soft: #695741;
   --line: #e2d5bb;
   --line-strong: #c9b894;
@@ -65,7 +67,8 @@
   color-scheme: dark;
   --bg: #151619;
   --bg-raised: #1d1f23;
-  --text: #e4e2da;
+  --text: #d6d3c9;
+  --heading: #f7f4ea;
   --text-soft: #9c998e;
   --line: #2e3035;
   --line-strong: #45484f;
@@ -81,7 +84,8 @@
     color-scheme: dark;
     --bg: #151619;
     --bg-raised: #1d1f23;
-    --text: #e4e2da;
+    --text: #d6d3c9;
+    --heading: #f7f4ea;
     --text-soft: #9c998e;
     --line: #2e3035;
     --line-strong: #45484f;
