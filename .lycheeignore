@@ -8,3 +8,4 @@
 # is still reported). Re-verify these by hand when revising the lessons.
 ^https://www\.cloudflare\.com/learning/
 ^https://net\.educause\.edu/
+^https://www\.iso\.org/
