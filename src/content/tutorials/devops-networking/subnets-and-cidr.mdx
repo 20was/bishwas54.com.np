@@ -1,0 +1,209 @@
+---
+title: Lesson 08 — Subnets and CIDR
+description: 'Three lessons have leaned on the same vague phrase: the DHCP bundle describing "which addresses count as the house," the laptop''s local-or-gateway decision, and routing table lines like 192.168.1.x → house side.'
+datePublished: 2026-08-10
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking
+  order: 8
+sourceId: net-foundations-08
+sourcePath: networking-lab/01-foundations/08-subnets-and-cidr.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 2 — subnets, CIDR notation
+> **Builds on:** Lesson 01 (bits, the private ranges), Lesson 05 (the DHCP bundle), Lesson 07 (routing table ranges)
+
+---
+
+## Table of contents
+
+1. [The vague phrase this lesson makes precise](#the-vague-phrase-this-lesson-makes-precise)
+2. [What a subnet is](#what-a-subnet-is)
+3. [The notation](#the-notation)
+4. [Reading the common sizes](#reading-the-common-sizes)
+5. [Three old mysteries resolve instantly](#three-old-mysteries-resolve-instantly)
+6. [The project, finally precise](#the-project-finally-precise)
+7. [The name: CIDR](#the-name-cidr)
+8. [Easy to get wrong](#easy-to-get-wrong)
+9. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+10. [Terms locked in](#terms-locked-in)
+11. [Deliberately not covered yet](#deliberately-not-covered-yet)
+12. [Sources](#sources)
+
+---
+
+## The vague phrase this lesson makes precise
+
+Three lessons have leaned on the same vague phrase: the DHCP bundle describing "which addresses count as the house," the laptop's local-or-gateway decision, and routing table lines like `192.168.1.x → house side`. The `x` was a placeholder, and this lesson replaces it with the real notation.
+
+---
+
+## What a subnet is
+
+A **subnet** is what these lessons have been calling "the house": a group of addresses that live together on one local network, where devices reach each other directly, chip to chip, no router needed. A home WiFi is one subnet. The project machine's network is another.
+
+*Sub-net* — a small network carved out of the bigger address space.
+
+The question is purely: **how do you write one down?** "Everything starting 192.168.1" worked for talking. Routers, laptops and cloud configs need it precise.
+
+---
+
+## The notation
+
+```
+192.168.1.0/24
+```
+
+Two parts: a starting address, a slash, and a number. The `/24` is the whole trick, and it means:
+
+> **The first 24 bits of the address are locked. The rest are free.**
+
+Bits — from Lesson 01, an IPv4 address is 32 bits: four numbers, 8 bits each, which is why each slot runs 0–255 (2⁸ = 256). So the four dot-separated numbers are really four groups of 8:
+
+```
+192      .  168      .  1        .  0
+8 bits      8 bits      8 bits      8 bits     = 32 total
+```
+
+`/24` locks the first 24 — exactly the first **three** numbers. So `192.168.1.0/24` means:
+
+> *Addresses where the first three numbers are exactly `192.168.1`, and the last number is anything.*
+
+That is "everything starting 192.168.1," written precisely. The range runs `192.168.1.0` through `192.168.1.255` — 256 addresses, one subnet, one house.
+
+---
+
+## Reading the common sizes
+
+The slash-number moves in steps of 8 most of the time, landing neatly on the dots:
+
+```
+/8    locks 1 number    10.x.x.x            16.7 million addresses
+/16   locks 2 numbers   10.0.x.x            65,536 addresses
+/24   locks 3 numbers   10.0.1.x            256 addresses
+/32   locks all 4       10.0.1.10 exactly   1 address
+```
+
+Two anchors worth keeping:
+
+- **/24 is the everyday size** — homes, small offices, most cloud subnets. "A /24" is spoken aloud in real work exactly like that: *"give the database its own slash twenty-four."*
+- **/32 means one single machine.** Locks everything, no freedom left. It appears in firewall rules meaning "this exact computer and nothing else."
+
+And the bigger the number after the slash, the *smaller* the network — more locked, less free. `/8` is enormous, `/24` is a house, `/32` is one machine. This inversion trips everyone exactly once.
+
+(The slash number *can* be things like /20 or /26, cutting mid-number — the counting gets fiddlier, and this track will do it only if AWS forces the issue. The multiples of 8 cover nearly everything.)
+
+---
+
+## Three old mysteries resolve instantly
+
+### Lesson 01's private ranges
+
+The three reserved blocks were CIDR all along. Their official forms:
+
+```
+10.0.0.0/8          the whole 10.x.x.x block
+172.16.0.0/12       the odd one — 12 locks mid-number, which is WHY it's the
+                    weird 172.16–172.31 range that trips people
+192.168.0.0/16      all of 192.168.x.x
+```
+
+Even the trap from Lesson 01 — "not all of 172!" — turns out to be just a /12 doing what /12 does.
+
+### The DHCP bundle
+
+What the router actually hands a laptop is not "roughly the house" but literally: *your subnet is `192.168.1.0/24`*. The laptop's local-or-gateway decision is: destination inside my /24 → chip-to-chip; outside → gateway.
+
+### Routing tables
+
+Real lines are written in CIDR:
+
+```
+192.168.1.0/24      →  house side
+0.0.0.0/0           →  internet side
+```
+
+The second line deserves a close look: `/0` locks **zero** bits. Nothing is locked, so *every address on Earth matches it*. That is the default route from the routing lesson — "everything else" has an official spelling, and it is `0.0.0.0/0`. That exact string gets typed into AWS route tables many times in a DevOps career.
+
+---
+
+## The project, finally precise
+
+The project machine `10.0.1.10` lives in subnet `10.0.1.0/24` — and this notation is what the entire AWS part runs on. Building the cloud network will start by carving one big block (something like `10.0.0.0/16`) into several /24 subnets — a public one, a private one for the Java backend, a private one for PostgreSQL. Every subnet decision in Part 2 is this lesson applied.
+
+---
+
+## The name: CIDR
+
+The notation is called **CIDR** — *Classless Inter-Domain Routing* — pronounced like "cider." The name's history matters little; everyone says "CIDR notation" or "a CIDR block." When AWS asks for a CIDR block, it is asking for exactly this: `10.0.1.0/24`.
+
+---
+
+## Easy to get wrong
+
+**Bigger slash = smaller network.** /8 is 16.7 million addresses; /32 is one. The number counts *locked* bits, not size. Everyone inverts this exactly once.
+
+**`0.0.0.0/0` is not an error or a wildcard hack.** It is the official spelling of "every address" — zero locked bits. Seeing it in a route table means "the default route," and seeing it in a firewall rule means "open to the whole internet," which is sometimes intended and sometimes a serious mistake. Reading it correctly matters.
+
+**A subnet is a local-delivery zone, not just a label.** Being in the same /24 means chip-to-chip reachability without a router. Two machines in different subnets need routing between them even if they sit in the same building — this becomes a daily reality in cloud networks.
+
+**The /12 in 172.16.0.0/12 is why that range confuses people.** It locks partway through the second number, producing the unintuitive 172.16–172.31 span. The range is not arbitrary; the notation explains it.
+
+**Mid-number slashes exist.** /20, /26 and friends are real and appear in cloud defaults. They follow the same locked-bits rule, just with untidier arithmetic — deferred until actually needed.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| `10.0.0.0/24` in configs | Cryptic string, copy it and hope | A range: first 24 bits locked, last number free, 256 addresses |
+| A subnet | Vague networking word | The house: one local-delivery zone where chips reach each other directly |
+| "Everything starting 192.168.1" | Informal hand-wave | `192.168.1.0/24`, precise and machine-readable |
+| The default route | "Everything else," somehow | `0.0.0.0/0` — zero locked bits, matches every address on Earth |
+| The 172.16–172.31 weirdness | An arbitrary trap to memorise | A /12 landing mid-number, doing exactly what the notation says |
+| Firewall rules naming one machine | — | `/32`: all bits locked, exactly one address |
+
+---
+
+## Terms locked in
+
+- **subnet** — one local-delivery zone; a group of addresses that reach each other chip-to-chip without a router
+- **CIDR notation** — `address/N`: the first N bits locked, the rest free
+- **CIDR block** — a range written in CIDR notation; what cloud providers ask for
+- **/24** — the everyday subnet: three numbers locked, 256 addresses
+- **/32** — exactly one machine
+- **`0.0.0.0/0`** — every address; the official spelling of the default route
+- **locked bits** — the fixed prefix that defines membership in the block
+
+---
+
+## Deliberately not covered yet
+
+- **Mid-number slashes (/20, /26...)** — same rule, fiddlier counting; deferred until AWS requires one
+- **NAT** — next lesson, paying the oldest debt in the track: how the house shares one public address
+- **Carving a /16 into /24s in practice** — Part 2, where it becomes the first thing typed into AWS
+- **Subnets as security boundaries** — public vs private subnets, Part 2
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| CIDR, the defining standard | RFC 4632 | https://www.rfc-editor.org/rfc/rfc4632.html |
+| The private ranges in their official CIDR form | RFC 1918 | https://www.rfc-editor.org/rfc/rfc1918.html |
+| Readable overview with a size calculator | Cloudflare Learning — What is CIDR? | https://www.cloudflare.com/learning/network-layer/what-is-cidr/ |
+
+> **Source note:** RFC 4632 replaced the original 1993 CIDR specs. The "classless" in the name refers to the rigid system it replaced — address "classes" — which is museum knowledge and deliberately not taught here.
+
+---
+
+*End of Lesson 08. Next: NAT — the oldest debt in the track, from Lesson 01's home-router trick.*
