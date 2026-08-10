@@ -1,91 +1,100 @@
 {
   "schemaVersion": 2,
   "sourceRepository": "20was/self-learn-docs",
-  "sourceCommit": "b4b6eb7cab72dea00a553335f7eef0457d2e61f5",
+  "sourceCommit": "c689bf1bc31bf2240c2e5c12d788f91354b8a3e4",
   "documents": {
     "net-foundations-01": {
       "sourcePath": "networking-lab/01-foundations/01-what-networking-is-and-ip-addresses.md",
       "targetPath": "src/content/tutorials/devops-networking/networking-and-ip-addresses.mdx",
       "collection": "tutorials",
       "slug": "networking-and-ip-addresses",
-      "bodyHash": "sha256:f3b7e75e89630ff001c120bb071fbbe5344da27f091310d16f54def44d33d9be",
-      "status": "published",
+      "route": "devops-networking/networking-and-ip-addresses",
       "previousRoutes": [
         "networking-and-ip-addresses"
       ],
-      "route": "devops-networking/networking-and-ip-addresses"
+      "bodyHash": "sha256:f3b7e75e89630ff001c120bb071fbbe5344da27f091310d16f54def44d33d9be",
+      "status": "published"
     },
     "net-foundations-02": {
       "sourcePath": "networking-lab/01-foundations/02-ports.md",
       "targetPath": "src/content/tutorials/devops-networking/ports.mdx",
       "collection": "tutorials",
       "slug": "ports",
-      "bodyHash": "sha256:33ba2ae47efc7f8ca84b471d3e382ae877695d2b328b7f56d8b640e45d3bc215",
-      "status": "published",
+      "route": "devops-networking/ports",
       "previousRoutes": [
         "ports"
       ],
-      "route": "devops-networking/ports"
+      "bodyHash": "sha256:33ba2ae47efc7f8ca84b471d3e382ae877695d2b328b7f56d8b640e45d3bc215",
+      "status": "published"
     },
     "net-foundations-03": {
       "sourcePath": "networking-lab/01-foundations/03-network-models-and-layers.md",
       "targetPath": "src/content/tutorials/devops-networking/network-models-and-layers.mdx",
       "collection": "tutorials",
       "slug": "network-models-and-layers",
-      "bodyHash": "sha256:86a2622c9d4b4b1c8f3927179c32da15c3b85046f8976aeb82c640c1e2fa7e0b",
-      "status": "published",
+      "route": "devops-networking/network-models-and-layers",
       "previousRoutes": [
         "network-models-and-layers"
       ],
-      "route": "devops-networking/network-models-and-layers"
+      "bodyHash": "sha256:86a2622c9d4b4b1c8f3927179c32da15c3b85046f8976aeb82c640c1e2fa7e0b",
+      "status": "published"
     },
     "net-foundations-04": {
       "sourcePath": "networking-lab/01-foundations/04-dns.md",
       "targetPath": "src/content/tutorials/devops-networking/dns.mdx",
       "collection": "tutorials",
       "slug": "dns",
-      "bodyHash": "sha256:632a82a8e70e3a656c2b647a6a81e5c123a5e5725dc627baa29e0b106a378241",
-      "status": "published",
+      "route": "devops-networking/dns",
       "previousRoutes": [
         "dns"
       ],
-      "route": "devops-networking/dns"
+      "bodyHash": "sha256:632a82a8e70e3a656c2b647a6a81e5c123a5e5725dc627baa29e0b106a378241",
+      "status": "published"
     },
     "net-foundations-05": {
       "sourcePath": "networking-lab/01-foundations/05-dhcp.md",
       "targetPath": "src/content/tutorials/devops-networking/dhcp.mdx",
       "collection": "tutorials",
       "slug": "dhcp",
-      "bodyHash": "sha256:41ee4e1e7bc1d4b6406823b35edde413430cb0df0d91ea6771d422560b0b8a06",
-      "status": "published",
+      "route": "devops-networking/dhcp",
       "previousRoutes": [
         "dhcp"
       ],
-      "route": "devops-networking/dhcp"
+      "bodyHash": "sha256:41ee4e1e7bc1d4b6406823b35edde413430cb0df0d91ea6771d422560b0b8a06",
+      "status": "published"
     },
     "net-foundations-06": {
       "sourcePath": "networking-lab/01-foundations/06-mac-addresses-and-arp.md",
       "targetPath": "src/content/tutorials/devops-networking/mac-addresses-and-arp.mdx",
       "collection": "tutorials",
       "slug": "mac-addresses-and-arp",
-      "bodyHash": "sha256:8cdfda657fce63a8bb97aa242f696365e9f57775356a8bb831d2420314a0581f",
-      "status": "published",
+      "route": "devops-networking/mac-addresses-and-arp",
       "previousRoutes": [
         "mac-addresses-and-arp"
       ],
-      "route": "devops-networking/mac-addresses-and-arp"
+      "bodyHash": "sha256:8cdfda657fce63a8bb97aa242f696365e9f57775356a8bb831d2420314a0581f",
+      "status": "published"
     },
     "net-foundations-07": {
       "sourcePath": "networking-lab/01-foundations/07-routing.md",
       "targetPath": "src/content/tutorials/devops-networking/routing.mdx",
       "collection": "tutorials",
       "slug": "routing",
-      "bodyHash": "sha256:59af7bd994923c7dd1a98f1b75174f01dbd5cada4d6f8551d17a24be96cae060",
-      "status": "published",
+      "route": "devops-networking/routing",
       "previousRoutes": [
         "routing"
       ],
-      "route": "devops-networking/routing"
+      "bodyHash": "sha256:59af7bd994923c7dd1a98f1b75174f01dbd5cada4d6f8551d17a24be96cae060",
+      "status": "published"
+    },
+    "net-foundations-08": {
+      "sourcePath": "networking-lab/01-foundations/08-subnets-and-cidr.md",
+      "targetPath": "src/content/tutorials/devops-networking/subnets-and-cidr.mdx",
+      "collection": "tutorials",
+      "slug": "subnets-and-cidr",
+      "route": "devops-networking/subnets-and-cidr",
+      "bodyHash": "sha256:2da85d2c5e8ef0cd856169f5453f7735ac4a083cfee5470d77c0538c1c389df0",
+      "status": "published"
     }
   }
 }
