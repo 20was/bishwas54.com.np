@@ -11,7 +11,13 @@ const headings = Astro.props.headings.filter((h) => h.depth === 2);
 {
   headings.length >= 2 && (
     <nav class="toc" aria-label="On this page">
-      <details open>
+      {/* Ships closed: on narrow screens this block sits above the article
+          body, so anything that changes its height after the first paint
+          shifts the whole page (CLS 0.2 on slow machines). Closed markup
+          needs no JS to be correct, and <details> stays usable without JS.
+          The inline script below expands it only on wide screens, where the
+          TOC is a sticky side rail whose height cannot move the prose. */}
+      <details>
         <summary class="meta">On this page</summary>
         <ul>
           {headings.map((h) => (
@@ -25,14 +31,17 @@ const headings = Astro.props.headings.filter((h) => h.depth === 2);
   )
 }
 
+<script is:inline>
+  if (matchMedia('(min-width: 1100px)').matches) {
+    // Classic inline script: runs during parsing, before the first paint.
+    document.querySelector('.toc details')?.setAttribute('open', '');
+  }
+</script>
+
 <script>
   // Scroll-spy: highlight the section currently in view (wide screens only —
   // on mobile the TOC is collapsed anyway).
   const toc = document.querySelector('.toc');
-  // Start collapsed on narrow screens (rendered open so no-JS users see it)
-  if (toc && !matchMedia('(min-width: 1100px)').matches) {
-    toc.querySelector('details')?.removeAttribute('open');
-  }
   if (toc && matchMedia('(min-width: 1100px)').matches) {
     const links = new Map(
       [...toc.querySelectorAll<HTMLAnchorElement>('a')].map((a) => [
