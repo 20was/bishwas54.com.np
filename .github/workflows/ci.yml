@@ -62,6 +62,7 @@ jobs:
         with:
           name: lighthouse-reports
           path: .lighthouseci/
+          include-hidden-files: true # .lighthouseci is a dotted dir
           retention-days: 3
 
       - name: Upload build artifact
