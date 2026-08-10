@@ -1,0 +1,267 @@
+---
+title: Lesson 09 — NAT
+description: 'Lesson 01 promised: "your whole home shares one internet-facing number, and the router does the translation in both directions." The factory-to-pixels story in Lesson 06 flagged the same gap: the reply''s journey back into the house skips a step.'
+datePublished: 2026-08-10
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking
+  order: 9
+sourceId: net-foundations-09
+sourcePath: networking-lab/01-foundations/09-nat.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 2 — NAT, and the inside-out asymmetry it creates (plus CGNAT by name)
+> **Builds on:** Lesson 01 (private blocks, the shared-house trick), Lesson 02 (source ports), Lesson 07 (routing), Lesson 08 (CIDR)
+
+---
+
+## Table of contents
+
+1. [The oldest debt in the track](#the-oldest-debt-in-the-track)
+2. [The problem, stated precisely](#the-problem-stated-precisely)
+3. [The fix: the router rewrites the envelope](#the-fix-the-router-rewrites-the-envelope)
+4. [The memory: how the reply finds the laptop](#the-memory-how-the-reply-finds-the-laptop)
+5. [This is why IPv4 survived](#this-is-why-ipv4-survived)
+6. [The consequence that shapes everything later](#the-consequence-that-shapes-everything-later)
+7. [Questions raised in this lesson](#questions-raised-in-this-lesson)
+8. [Reading a real phone's settings screen](#reading-a-real-phones-settings-screen)
+9. [Easy to get wrong](#easy-to-get-wrong)
+10. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+11. [Terms locked in](#terms-locked-in)
+12. [Deliberately not covered yet](#deliberately-not-covered-yet)
+13. [Sources](#sources)
+
+---
+
+## The oldest debt in the track
+
+Lesson 01 promised: *"your whole home shares one internet-facing number, and the router does the translation in both directions."* The factory-to-pixels story in Lesson 06 flagged the same gap: the reply's journey back into the house skips a step. This lesson pays the debt.
+
+---
+
+## The problem, stated precisely
+
+The laptop is `192.168.1.47`. That is a private address — inside `192.168.0.0/16`, one of the RFC 1918 blocks. And Lesson 01 said what matters about those blocks: they are only unique *inside* one house. Millions of houses have a `192.168.1.47` right now. Internet routers are expected to filter these addresses out — they carry no meaning out there.
+
+Watch the laptop send its envelope to GitHub:
+
+```
+from:  192.168.1.47:51862
+to:    140.82.121.4:443
+```
+
+The envelope reaches GitHub fine — the *destination* is a real public address, and destinations are all the routers ever read. But then GitHub composes the reply and addresses it to... `192.168.1.47`. An address that exists in millions of houses and is meaningless on the internet. The reply is undeliverable.
+
+**Every conversation would be one-way.** That is the real problem: not sending — *getting answers back*.
+
+---
+
+## The fix: the router rewrites the envelope
+
+The router has something no other device in the house has: a **public address** on its internet side, given by the ISP — say `84.120.66.5`. One real, world-meaningful address for the whole house.
+
+So the router does something no device has done before in this track. Until now, every hop treated the IP envelope as untouchable — read it, never change it. The router at the edge of the house breaks that rule deliberately. As the envelope passes through on its way out, the router **rewrites the sender line**:
+
+```
+arrives from laptop:    from 192.168.1.47:51862  →  to 140.82.121.4:443
+leaves toward internet: from 84.120.66.5:8813    →  to 140.82.121.4:443
+```
+
+The private source address is replaced with the router's public one. From the internet's point of view, the laptop doesn't exist — **the house speaks as one machine**, `84.120.66.5`. GitHub receives the request, sees a perfectly normal public sender, and replies to `84.120.66.5:8813`. That reply is deliverable — a real address, routing straight back to the router.
+
+This rewriting is **NAT** — *Network Address Translation*. Translation, literally: private addresses translated to public at the door, and back again on the way in.
+
+---
+
+## The memory: how the reply finds the laptop
+
+The reply arrives at the router addressed to `84.120.66.5:8813`. But the router isn't the real recipient — the laptop is. And the phone might also be mid-conversation with three websites. Which inside device gets which incoming reply?
+
+Notice what the router did in the rewrite: it didn't just swap the address — it also swapped the **source port** (`51862` became `8813`). It chose that number, and it wrote the choice down. The router keeps a live table of every conversation currently crossing it:
+
+```
+outside port 8813   ↔   192.168.1.47:51862   (laptop ↔ GitHub)
+outside port 8814   ↔   192.168.1.53:49001   (TV ↔ Netflix)
+outside port 8815   ↔   192.168.1.62:50333   (phone ↔ Instagram)
+```
+
+Reply to `8813` arrives → the table says that's the laptop's conversation → the router rewrites the *destination* back to `192.168.1.47:51862` → ARP, Layer 2 envelope, delivered. The laptop never knows anything was rewritten in either direction.
+
+The mechanism is familiar: it is the **source-port idea from the ports lesson, promoted one level up.** There, the operating system used temporary ports to tell apart conversations of different *programs on one machine*. Here, the router uses them to tell apart conversations of different *machines in one house*. Same trick, bigger scope.
+
+The table entries expire when conversations go quiet — TTL thinking, fourth appearance: DNS answers, DHCP leases, ARP entries, NAT entries. Nothing stale survives.
+
+---
+
+## This is why IPv4 survived
+
+Lesson 01's mystery now fully closes. The address pool ran dry in 2011, yet the internet grew by billions of devices since. NAT is how: a house consumes **one** public address for any number of devices. Offices with thousands of machines: one or a handful. Phone carriers push it further — entire cities of phones behind small pools of public addresses (the same mechanism again, one level up: NAT behind NAT).
+
+The cost of the trick is the entire IPv6 story: NAT bought the internet fifteen-plus years by making the private/public split — and boxes that rewrite envelopes in flight — a permanent structural feature of the internet.
+
+---
+
+## The consequence that shapes everything later
+
+One thing NAT quietly changed, and it matters more than the trick itself.
+
+Look at the table again. An entry is created **when an inside device sends something out.** The reply can come back *because the outgoing request created the entry.*
+
+Now flip it. Someone on the internet — not replying, just initiating — sends a fresh envelope to `84.120.66.5:443`, hoping to reach something inside the house. The router checks its table: no entry. No inside conversation ever created one. **The envelope has nowhere to go, and the router drops it.**
+
+What that means:
+
+> **Behind NAT, inside devices can start conversations with the world, but the world cannot start conversations with inside devices.**
+
+A laptop browses anything; nothing out there can browse the laptop. This is accidental protection — NAT wasn't designed as a shield, but dropping unsolicited traffic falls out of the mechanism — and it is why every home device isn't constantly probed to death.
+
+But consider the running project. The React frontend, the Java backend — these are *waiters* (from the ports lesson: programs whose entire purpose is receiving conversations that outsiders initiate). **A waiter behind NAT is unreachable. The project, deployed behind a home-style NAT, would work perfectly and serve nobody.**
+
+That tension — outside traffic *must* reach the waiters, yet machines want NAT-style unreachability — is not a side note. It is *the* central design problem of real deployments, and the entire AWS part of this track is essentially the industry's answer to it: which machines get public addresses, which hide behind NAT, and what stands at the door deciding who gets through. Public subnets, private subnets, the AWS "NAT Gateway" (this lesson, sold as a service), load balancers — all of it is this paragraph, expanded.
+
+---
+
+## Questions raised in this lesson
+
+### A phone on the WiFi has its own address — isn't that unique?
+
+It has an address, and it is unique — **but only inside the house.** Checking a phone's WiFi settings shows something like `192.168.0.178`: inside a private block, leased from the router's DHCP pool exactly like the laptop's. It means nothing to the internet.
+
+Inside the house, every device is distinct:
+
+```
+laptop   192.168.1.47   ← unique within these walls
+phone    192.168.1.62   ← unique within these walls
+TV       192.168.1.53   ← unique within these walls
+```
+
+The moment any envelope crosses the router, NAT rewrites the sender — and all devices leave stamped with the same public address, told apart only by the port numbers in the router's table. Unique inside; one shared identity outside. Both true at once.
+
+**The sixty-second proof, on any phone:**
+
+1. Phone on WiFi → settings show the private address (`192.168.x.x`).
+2. Phone on WiFi → browser, search "what is my IP" — the website reports something entirely different: the house's public address.
+3. Same search on the laptop — **the website shows the exact same public address as the phone.**
+
+Step 3 is the punchline: two devices, two different private addresses, one outside identity. The website can only see the sender line on envelopes that reach it — and by then NAT has rewritten every one.
+
+**When the phone leaves the house:** on mobile data it gets a new address from the carrier — typically private-style again, from a different block. A phone is behind someone's NAT almost every moment of its existence: the home router's on WiFi, the carrier's outside. It essentially never holds a public address of its own. Which is fine, and the reason is precise: a phone is an **asker**, not a waiter. It initiates everything and waits for nothing, so NAT's asymmetry never hurts it. The only machines that genuinely need their own public address are the waiters — and that is exactly the line along which deployment architecture divides the world.
+
+### On mobile data, does the ISP act as the router?
+
+Yes — the carrier plays exactly the router's role, at monstrous scale:
+
+| At home | On mobile data |
+|---|---|
+| Router's DHCP lends `192.168.1.62` | Carrier's equipment lends an address from a private-style block |
+| Router is the gateway, the way out | Carrier's equipment is the gateway |
+| Router's NAT rewrites envelopes to the house's public address | Carrier's NAT rewrites envelopes to one of *its* public addresses |
+| Router's table: a dozen conversations | Carrier's table: **millions** of conversations |
+
+On mobile data, the public address a website sees is *also* the address thousands of other people in the city are showing websites at that very second. One public address, one giant conversation table, port numbers telling everyone apart — the same mechanism, stretched to city size.
+
+The scaled-up version has its own name: **CGNAT** — *carrier-grade NAT*. Same trick, industrial size. One consequence is already explainable with this lesson's tools: hosting a waiter from a phone is impossible, because unsolicited envelopes die at a NAT table with no entry — and nobody gets an entry into a table shared with a whole city.
+
+One honest wrinkle: mobile networks are where IPv6 is furthest ahead — carriers drove much of the adoption from Lesson 01, precisely *because* CGNAT at city scale is expensive and painful, and IPv6's endless addresses make the translation machinery unnecessary. Many phones run both systems at once: real IPv6 for traffic that supports it, CGNAT'd IPv4 for the rest.
+
+> **The structural answer: the ISP is the router, and the phone is inside its house.**
+
+---
+
+## Reading a real phone's settings screen
+
+An iPhone's WiFi details screen, read line by line with this track's tools:
+
+**Configure IP: Automatic** — that is DHCP, named right there. The phone did the shout/offer/take/confirm dance and got the bundle.
+
+**IP Address: 192.168.0.178** — inside a private block; a leased loan from the router's pool; unique within these walls; NAT-rewritten the instant envelopes leave.
+
+**Router: 192.168.0.1** — the gateway from the bundle: the way out. Every outbound envelope gets a Layer 2 envelope addressed to this device's chip (learned via one ARP shout, cached).
+
+**Subnet Mask: 255.255.255.0** — the CIDR lesson **wearing older clothing.** Before `/24` notation existed, the same fact was written as a mask: each 255 means "this number is fully locked," each 0 means "free":
+
+```
+255 . 255 . 255 . 0      ←  locked, locked, locked, free
+  =  /24
+```
+
+So this phone's subnet is `192.168.0.0/24` — the house is `192.168.0.x`, 256 addresses. Both spellings appear everywhere and mean the same statement. (Why 255? A fully-locked group of 8 bits, all ones, reads as 255 — the 2⁸−1 ceiling from Lesson 01.)
+
+Note also: this house numbers from `192.168.0.x` while the lesson examples used `192.168.1.x` — different houses pick different /24s from inside the big private block, exactly the freedom RFC 1918 grants.
+
+**IPv6 Address: fe80::...** — one honest footnote: an address starting `fe80` is a special *local-only* kind of IPv6 — every IPv6 device automatically gives itself one for talking within the house, even on networks with no real IPv6 service. It is **not** a public address. Real carrier-provided IPv6 shows as a second, longer-lived address, typically starting with a 2. Seeing `fe80::` proves the phone speaks IPv6; it doesn't prove the connection uses it.
+
+---
+
+## Easy to get wrong
+
+**NAT solves the reply problem, not the sending problem.** Outbound envelopes with private sources would often *reach* their destination; the replies could never come back. The rewrite exists for the return path.
+
+**The ports in the NAT table are the ports lesson, one level up.** OS source ports separate programs on a machine; NAT ports separate machines in a house; CGNAT ports separate houses in a city. One idea, three scales.
+
+**NAT's protection is an accident, not a design.** Dropping unsolicited inbound traffic falls out of the table mechanism. It works, but it is not a firewall — that distinction gets sharp in lesson 13.
+
+**"My IP" is two different answers.** Settings show the private address (what the house knows you as); "what is my IP" websites show the public one (what the world knows the whole house as). Neither is wrong; they answer at different layers of the rewrite.
+
+**A waiter behind NAT is invisible, and no amount of correct configuration on the waiter itself fixes that.** The problem lives at the door, not on the machine. This single fact drives most of deployment architecture.
+
+**Subnet mask and CIDR are the same statement.** `255.255.255.0` is `/24` in older spelling. Devices and clouds mix both freely.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| The home's internet identity | Each device is "on the internet" | Devices hold house-only addresses; the house speaks as one public address, and the router rewrites every envelope both ways |
+| The IP envelope | Untouchable end to end | Untouchable *except* at NAT boxes, which rewrite sender lines outbound and destination lines inbound |
+| Why IPv4 still works post-2011 | Vague "workarounds" | NAT: one public address per house, ports distinguishing conversations — repeated at carrier scale as CGNAT |
+| Unsolicited traffic from the internet | Presumably arrives somewhere | Dies at the NAT table: no outbound entry, no way in — the inside-out asymmetry |
+| Hosting something at home / on a phone | Should be possible with the right settings | Structurally blocked by NAT (and hopeless behind CGNAT); waiters need the public side — the core problem Part 2 solves |
+| Mobile data | Some different phone-internet | The same machinery: the carrier is the router, the city is the house |
+
+---
+
+## Terms locked in
+
+- **NAT (Network Address Translation)** — the router rewriting private sender lines to its public address outbound, and reversing it inbound
+- **public address** — the ISP-given, world-meaningful address on the router's internet side; one per house
+- **NAT table** — the live outside-port ↔ inside-address:port memory that routes replies back in; entries expire
+- **inside-out asymmetry** — inside can initiate outward; the world cannot initiate inward
+- **CGNAT (carrier-grade NAT)** — the same mechanism at carrier scale; a city behind shared public addresses
+- **subnet mask** — the pre-CIDR spelling of the locked-bits idea; `255.255.255.0` = `/24`
+- **fe80:: address** — a device's automatic local-only IPv6; not a public address
+
+---
+
+## Deliberately not covered yet
+
+- **How waiters ARE reached from the internet** — the entire AWS part; public vs private subnets, the NAT Gateway service, load balancers
+- **Firewalls** — deliberate blocking, as opposed to NAT's accidental kind; lesson 13
+- **Port forwarding** — manually punching a waiter-shaped hole in a home NAT; mentioned when firewalls arrive, mattering little in cloud work
+- **How NAT interacts with connections** (why table entries know when conversations end) — needs TCP; next lesson
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| Traditional NAT, the defining specification | RFC 3022 | https://www.rfc-editor.org/rfc/rfc3022.html |
+| The private blocks NAT pairs with | RFC 1918 | https://www.rfc-editor.org/rfc/rfc1918.html |
+| CGNAT and the dedicated shared address block carriers may use | RFC 6598 | https://www.rfc-editor.org/rfc/rfc6598.html |
+| Link-local IPv6 (fe80::) auto-addresses | RFC 4291, section 2.5.6 | https://www.rfc-editor.org/rfc/rfc4291.html |
+| Readable overview | Cloudflare Learning — What is NAT? | https://www.cloudflare.com/learning/network-layer/what-is-nat/ |
+
+> **Source note:** RFC 3022 calls the port-tracking variant taught here NAPT (Network Address Port Translation) — the everyday word "NAT" almost always means this variant. RFC 6598 defines a special block (`100.64.0.0/10`) reserved specifically for carriers to use behind CGNAT, so carrier insides don't collide with customers' own private ranges.
+
+---
+
+*End of Lesson 09. Next: TCP vs UDP — what a "connection" actually is.*

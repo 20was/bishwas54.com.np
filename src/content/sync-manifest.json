@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "sourceRepository": "20was/self-learn-docs",
-  "sourceCommit": "c689bf1bc31bf2240c2e5c12d788f91354b8a3e4",
+  "sourceCommit": "8688d7d49c61bcde3864bf89026dfb11697bc8ce",
   "documents": {
     "net-foundations-01": {
       "sourcePath": "networking-lab/01-foundations/01-what-networking-is-and-ip-addresses.md",
@@ -94,6 +94,15 @@
       "slug": "subnets-and-cidr",
       "route": "devops-networking/subnets-and-cidr",
       "bodyHash": "sha256:2da85d2c5e8ef0cd856169f5453f7735ac4a083cfee5470d77c0538c1c389df0",
+      "status": "published"
+    },
+    "net-foundations-09": {
+      "sourcePath": "networking-lab/01-foundations/09-nat.md",
+      "targetPath": "src/content/tutorials/devops-networking/nat.mdx",
+      "collection": "tutorials",
+      "slug": "nat",
+      "route": "devops-networking/nat",
+      "bodyHash": "sha256:5dff27559a671a9823ed5028fe263ac02d492379db86310c34972dcecab9adbc",
       "status": "published"
     }
   }
