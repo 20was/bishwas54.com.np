@@ -1,0 +1,10 @@
+# Links the checker cannot verify — one regex per line.
+#
+# These hosts serve a Cloudflare bot challenge ("Just a moment...") to every
+# automated client, so they answer 403 for BOTH live and deleted pages —
+# checked 2026-08-10 with curl and a real browser engine, including a URL
+# known not to exist. A link check can prove nothing either way here, so
+# they are excluded rather than accepted globally (a 403 from any other host
+# is still reported). Re-verify these by hand when revising the lessons.
+^https://www\.cloudflare\.com/learning/
+^https://net\.educause\.edu/
