@@ -1,0 +1,265 @@
+---
+title: Lesson 10 — TCP vs UDP
+description: 'From the layers lesson, the message is lines read by different readers:'
+datePublished: 2026-08-10
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking
+  order: 10
+sourceId: net-foundations-10
+sourcePath: networking-lab/01-foundations/10-tcp-vs-udp.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 3 — the two Layer 4 philosophies, the three-way handshake, the numbers-and-receipts machine
+> **Builds on:** Lesson 02 (ports), Lesson 03 (layers), Lesson 04 (DNS), Lesson 07 (routing paths), Lesson 09 (the NAT table's loose end)
+
+---
+
+## Table of contents
+
+1. [Layer refresher first](#layer-refresher-first)
+2. [Two ugly truths about envelope delivery](#two-ugly-truths-about-envelope-delivery)
+3. [The names, and why they carry the whole comparison](#the-names-and-why-they-carry-the-whole-comparison)
+4. [The real fork: can a missing piece be tolerated?](#the-real-fork-can-a-missing-piece-be-tolerated)
+5. [UDP — just throw it](#udp--just-throw-it)
+6. [TCP — the careful courier](#tcp--the-careful-courier)
+7. [The self-test: cricket vs YouTube](#the-self-test-cricket-vs-youtube)
+8. [The three-way handshake](#the-three-way-handshake)
+9. [Keeping the promises: numbers and receipts](#keeping-the-promises-numbers-and-receipts)
+10. [The NAT mystery resolves itself](#the-nat-mystery-resolves-itself)
+11. [Easy to get wrong](#easy-to-get-wrong)
+12. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+13. [Terms locked in](#terms-locked-in)
+14. [Deliberately not covered yet](#deliberately-not-covered-yet)
+15. [Sources](#sources)
+
+---
+
+## Layer refresher first
+
+From the layers lesson, the message is lines read by different readers:
+
+```
+Layer 7   the text          read by the program        (Application)
+Layer 4   the port          read by the computer       (Transport)
+Layer 3   the address       read by the routers        (Network)
+Layer 2   the chip's MAC    read by chips nearby       (Data Link)
+Layer 1   the carrying      wires and WiFi             (Physical)
+```
+
+"Layer 4" means: **the port line of the envelope.** This whole lesson in one sentence against that table: the port line turns out to have room for more than the port — TCP writes its control accounting there; UDP writes nothing extra.
+
+---
+
+## Two ugly truths about envelope delivery
+
+Everything so far treated envelope delivery as dependable. Two truths were hidden:
+
+**Ugly truth 1: envelopes get lost.** Routers are allowed to drop envelopes. Not as a malfunction — as design. When too much traffic hits a router at once, its queues fill, and it simply discards what doesn't fit. No apology, no notification. Somewhere between the house and GitHub, any envelope might just vanish. The network promises to *try*, nothing more.
+
+**Ugly truth 2: one envelope is tiny.** An envelope holds roughly 1,500 bytes — about one paragraph of text. The GitHub homepage is a few *megabytes*: thousands of envelopes for one page. And those thousands travel independently — from the routing lesson, paths are re-derived continuously, so envelope #7 might take a different cable than #8 and **arrive after #12.** Nothing in the network keeps them in order.
+
+So the real situation when a page is sent: thousands of envelopes, any of which may vanish, arriving shuffled. Out of that, the browser must reconstruct a perfect, complete, correctly-ordered page.
+
+The routers don't fix this — they read addresses and forward, nothing more. The fixing happens **at the two ends**, and it lives in Layer 4. But not every conversation *wants* the fixing — which is why Layer 4 offers **two different services**, and every program picks one when it starts talking.
+
+---
+
+## The names, and why they carry the whole comparison
+
+**TCP = Transmission Control Protocol.** *Transmission* — the sending of data. *Control* — it controls the sending: checks it, corrects it, keeps it in order. A protocol (agreed script, like DHCP and DNS) that controls transmission. The name is the job.
+
+**UDP = User Datagram Protocol.** A *datagram* is the official word for one of our envelopes — a single, self-contained sent thing. So: a protocol for sending individual envelopes. No control in the name — and none in the protocol. That absence is the entire design.
+
+Control vs no-control. The names carry the whole comparison.
+
+---
+
+## The real fork: can a missing piece be tolerated?
+
+Two things from ordinary life this week:
+
+**A WhatsApp message.** Imagine one word silently vanished in transit — "I'm **not** coming today" arrives as "I'm coming today." Or a banking app with one digit of a balance missing. Unacceptable — not inconvenient, *wrong*. For messages, pages, money, code: **every piece must arrive, in order, or the meaning breaks.** An extra half-second of waiting is a fine price for that guarantee.
+
+**A video call.** Mid-call, one envelope carrying a fraction of a second of voice gets lost. What should happen? Consider what *resending* would mean: that quarter-second of audio arrives... a second late. Should the call **pause and rewind** to play it? Absurd — the moment has passed; the conversation moved on. The only sane choice: skip it. A tiny crackle, and the call continues live. For live voice and video: **being on time matters more than being complete.** A late piece isn't valuable — it's garbage.
+
+That is the entire fork, and it was never really about technology:
+
+> **Can a missing piece be tolerated?**
+> **No** → TCP: wait, resend, reorder — deliver perfection late if needed. *(messages, pages, banking, the project's React→Java→PostgreSQL calls)*
+> **Yes, if it keeps things live** → UDP: throw envelopes, never look back. *(calls, video meetings, live streams, game movements)*
+
+Concretely: WhatsApp texts ride TCP; a WhatsApp *call* rides UDP. Same app, both protocols, chosen per job. Every program that talks over a network makes this exact choice.
+
+---
+
+## UDP — just throw it
+
+**UDP** adds nothing beyond what earlier lessons built. The Layer 4 envelope carries the ports, the text goes inside, off it goes. If it arrives, it arrives. If it's lost — nobody's told, nothing's resent. One envelope out, hopefully one back.
+
+Sounds reckless — but it's already in daily use: **the DNS question is UDP.** And it's the perfect choice there. The whole exchange is one tiny question and one tiny answer: fits in single envelopes, no ordering problem possible. If the answer doesn't come back in a moment, the asker just asks again — resending a 50-byte question costs nothing. Building machinery for that would cost more than the problem.
+
+UDP's virtue is what it *doesn't* do: no setup, no tracking, no waiting. Minimum possible delay.
+
+---
+
+## TCP — the careful courier
+
+**TCP** is the opposite bet: before any real text moves, the two programs establish a **connection** — an agreement that says *we are now in an ongoing exchange, and we will both keep track.* Then TCP promises three things about everything sent within it:
+
+```
+nothing missing     lost envelopes are detected and resent
+nothing shuffled    envelopes carry sequence numbers; the receiver reorders
+nothing repeated    duplicates are recognised and discarded
+```
+
+The receiving program gets a perfect stream, as if the network were flawless — because TCP at both ends quietly did the accounting: numbering every envelope, confirming receipt of each, resending what wasn't confirmed. All of that accounting travels in the Layer 4 envelope, next to the ports.
+
+The webpage is TCP — thousands of envelopes that must reassemble perfectly. So is almost everything in the project: React to Java backend, Java to PostgreSQL.
+
+The trade, one line each:
+
+```
+UDP   fast, simple, no promises      — pay nothing, get nothing guaranteed
+TCP   ordered, complete, reliable    — pay in setup time and tracking overhead
+```
+
+Neither is "better." They are different answers to *"is a lost envelope my problem or the network user's problem?"*
+
+---
+
+## The self-test: cricket vs YouTube
+
+A test that proves the concept landed. Two familiar behaviours:
+
+- *A live cricket stream stutters but never rewinds.* → **UDP.** It doesn't care if something breaks; it never goes back. The stream's whole value is *now*.
+- *A YouTube video pauses to buffer but never skips.* → **TCP.** It waits for everything.
+
+And the enrichment hiding in the second answer: isn't YouTube video, like the cricket stream? Why opposite choices? Because YouTube isn't *live*. A pre-recorded video has no "moment that passed" — if the network hiccups, pausing to fetch every piece is fine, even good: full quality matters, and rewinding to any second must work perfectly. The cricket stream can't wait for anything.
+
+**Same content type (video), opposite answer — because the question was never "what kind of data," it's "does late data still have value."** That is the sharpest version of the rule.
+
+---
+
+## The three-way handshake
+
+TCP's connection has to be *established*, and that takes exactly three envelopes before any real text moves. Chrome connecting to GitHub's waiter on port 443:
+
+```
+1. Chrome  → GitHub:   "I want to start a connection. My numbering begins at 4,001."
+2. GitHub  → Chrome:   "Accepted. Yours noted. MY numbering begins at 9,500."
+3. Chrome  → GitHub:   "Noted yours too. We're on."
+```
+
+Then — and only then — the first byte of "please send me the homepage" is sent.
+
+**Why three, not two?** Because *both* sides will be sending, so *both* need their numbering acknowledged. Envelope 1 proposes Chrome's numbers; envelope 2 accepts them *and* proposes GitHub's; envelope 3 accepts GitHub's. Two would leave GitHub never knowing whether Chrome heard its numbers. Three closes the loop both ways — the minimum for two-way certainty.
+
+This is the **three-way handshake** — a career-long phrase, and it is exactly these three envelopes. It is also TCP's entry fee: one full round trip of delay before any data, every connection. That is the "pay in setup time" from the trade table — and precisely what UDP refuses to pay.
+
+The envelopes have technical names — the first is a **SYN**, the reply a **SYN-ACK**, the third an **ACK**. Incident chats and logs use them constantly, and SYN reappears in the firewall lesson.
+
+---
+
+## Keeping the promises: numbers and receipts
+
+With numbering agreed, every envelope of data carries its position in the stream — byte 4,001, byte 5,501, and so on. Each promise becomes mechanical:
+
+**Nothing shuffled:** envelopes #4,001 and #5,501 arrive swapped? The receiver slots each into its numbered place. Order restored by arithmetic.
+
+**Nothing repeated:** same number arrives twice? Discard the second. Trivial.
+
+**Nothing missing — the clever one:** the receiver continuously sends back small receipts: *"I have everything up to 5,500."* The sender keeps every envelope until it is receipted. If the receipt for a range doesn't come within the expected time — that envelope died in some router's queue — **the sender resends it, unprompted.** Loss is detected by *silence*, and repaired by the sender's own copy. The network never apologises; TCP never needed it to.
+
+That is the entire machine: numbers going one way, receipts coming back, resend on silence. Everything TCP promises falls out of those three moves.
+
+(One refinement lives on top — the sender also watches how fast receipts return and slows down when the network seems congested, which is why downloads speed up and slow down like breathing. The topic is called congestion control; name filed, depth deliberately deferred.)
+
+---
+
+## The NAT mystery resolves itself
+
+The NAT lesson left one loose end: how does the NAT table know a conversation ended, to clean up its entry?
+
+Now it is visible. TCP connections don't just start with a handshake — they **end with one too**: a "finished" envelope each way, acknowledged. The NAT box, sitting on the path, watches Layer 4 pass through — it *sees* the handshake open a connection and *sees* the finish envelopes close it. TCP entries in the NAT table are cleaned on goodbye, precisely.
+
+UDP has no connection, no goodbye — nothing to observe. So for UDP the NAT box falls back to the blunt tool: a quiet timer. No envelopes for a while → entry deleted.
+
+TTL thinking, final appearance in Part 1: DNS answers, DHCP leases, ARP entries, NAT entries.
+
+---
+
+## Easy to get wrong
+
+**Dropped envelopes are normal operation, not failure.** Routers discard under load by design. All reliability on the internet is built *on top of* an unreliable core, at the endpoints — arguably the single most important design fact about the internet.
+
+**TCP's guarantees cost a round trip before any data.** The handshake is why "connecting..." exists. High-frequency short exchanges pay this fee every time — one reason DNS chose UDP.
+
+**UDP is not the careless choice — it is often the correct one.** For live media, resending is actively harmful: late data is garbage. Choosing TCP for a live stream would make it worse, not safer.
+
+**Live vs recorded matters more than content type.** Video can be either protocol; the deciding question is whether late data still has value.
+
+**TCP fixes loss between the endpoints, not application crashes.** If the Java backend dies mid-response, TCP cannot help — its promises cover the transmission, not the programs.
+
+**The receipts are why "it's slow" and "it's broken" blur.** Heavy loss doesn't stop TCP; it makes it resend and slow down. A lossy network shows up as mysterious slowness long before it shows up as errors.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| Envelope delivery | The network delivers what is sent | The network may drop, shuffle, and duplicate; it only promises to try |
+| TCP and UDP | Two obscure acronyms on a comparison chart | The two Layer 4 answers to "can a missing piece be tolerated?" |
+| A "connection" | Vague term for being linked | A negotiated agreement — three envelopes — after which both ends track numbering |
+| Reliability | Something the internet just has | Manufactured at the endpoints: numbers out, receipts back, resend on silence |
+| Video streaming | One kind of traffic | Two kinds: live rides UDP and skips; recorded rides TCP and buffers |
+| The handshake | Jargon | Exactly three envelopes (SYN, SYN-ACK, ACK), one round-trip entry fee |
+| NAT table cleanup | Left unexplained | Watches TCP goodbyes; times out UDP silence |
+
+---
+
+## Terms locked in
+
+- **TCP (Transmission Control Protocol)** — the Layer 4 service with a connection and the three promises: nothing missing, shuffled, or repeated
+- **UDP (User Datagram Protocol)** — the Layer 4 service that just sends; no setup, no tracking, no promises
+- **datagram** — the official word for a single self-contained envelope
+- **connection** — the both-ends-keep-track agreement TCP establishes before data
+- **three-way handshake** — the three envelopes (SYN, SYN-ACK, ACK) that open every TCP connection
+- **sequence numbers** — each envelope's position in the stream; how order and gaps are detected
+- **receipt (acknowledgment / ACK)** — the receiver's ongoing "I have everything up to N"
+- **resend on silence** — the sender's repair rule: unreceipted means lost, so send again
+- **congestion control** — TCP's self-slowing when receipts lag; name filed, depth deferred
+
+---
+
+## Deliberately not covered yet
+
+- **Congestion control mechanics** — why downloads breathe; deep water, deferred indefinitely
+- **What the text inside the TCP stream looks like** — HTTP, next lesson
+- **SYN in hostile hands** — reappears in the firewall lesson
+- **QUIC** — a modern protocol that rebuilds TCP-like promises on top of UDP; mentioned here only so the name doesn't surprise later, since parts of the modern web ride it
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| TCP, current consolidated specification | RFC 9293 | https://www.rfc-editor.org/rfc/rfc9293.html |
+| UDP, the complete specification (3 pages, 1980) | RFC 768 | https://www.rfc-editor.org/rfc/rfc768.html |
+| DNS over UDP (and when it switches) | RFC 1035, section 4.2 | https://www.rfc-editor.org/rfc/rfc1035.html |
+| Readable overview | Cloudflare Learning — TCP/IP | https://www.cloudflare.com/learning/ddos/glossary/tcp-ip/ |
+
+> **Source note:** the two specifications' sizes tell the philosophy story by themselves — UDP's RFC is 3 pages; TCP's consolidated RFC runs over a hundred. Control costs pages.
+
+---
+
+*End of Lesson 10. Next: HTTP and HTTPS — finally opening the innermost envelope and reading the text itself.*

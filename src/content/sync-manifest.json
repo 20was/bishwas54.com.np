@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "sourceRepository": "20was/self-learn-docs",
-  "sourceCommit": "8688d7d49c61bcde3864bf89026dfb11697bc8ce",
+  "sourceCommit": "a44ccd996ebabf9acef9e9a9b202ae7d1ce8bd5b",
   "documents": {
     "net-foundations-01": {
       "sourcePath": "networking-lab/01-foundations/01-what-networking-is-and-ip-addresses.md",
@@ -103,6 +103,15 @@
       "slug": "nat",
       "route": "devops-networking/nat",
       "bodyHash": "sha256:5dff27559a671a9823ed5028fe263ac02d492379db86310c34972dcecab9adbc",
+      "status": "published"
+    },
+    "net-foundations-10": {
+      "sourcePath": "networking-lab/01-foundations/10-tcp-vs-udp.md",
+      "targetPath": "src/content/tutorials/devops-networking/tcp-vs-udp.mdx",
+      "collection": "tutorials",
+      "slug": "tcp-vs-udp",
+      "route": "devops-networking/tcp-vs-udp",
+      "bodyHash": "sha256:53a5d79a355a441d7c5831cfc10ce83d0c4ed448ff93e423e5e41bdadd4e2709",
       "status": "published"
     }
   }
