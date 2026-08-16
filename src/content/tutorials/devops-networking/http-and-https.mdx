@@ -1,0 +1,393 @@
+---
+title: Lesson 11 — HTTP and HTTPS
+description: 'From the layers lesson:'
+datePublished: 2026-08-16
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking
+  order: 11
+sourceId: net-foundations-11
+sourcePath: networking-lab/01-foundations/11-http-and-https.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 3 — the HTTP request/response format, the S in HTTPS, the security threat it defends against
+> **Builds on:** Lesson 02 (ports, and the old "specific things" question), Lesson 03 (Layer 7, the text), Lesson 04 (names, the Host survivor), Lesson 09 (NAT proving hops can rewrite), Lesson 10 (TCP delivering the stream)
+
+---
+
+## Table of contents
+
+1. [Layer refresher first](#layer-refresher-first)
+2. [The name](#the-name)
+3. [What the text actually says — a request](#what-the-text-actually-says--a-request)
+4. [The path — the old ports-lesson question, answered](#the-path--the-old-ports-lesson-question-answered)
+5. [Methods — the verbs](#methods--the-verbs)
+6. [Why Host matters more than it looks](#why-host-matters-more-than-it-looks)
+7. [Reading a real capture from the browser](#reading-a-real-capture-from-the-browser)
+8. [Status codes — the response's verdict](#status-codes--the-responses-verdict)
+9. [HTTPS — the S](#https--the-s)
+10. [The two promises, seen in the padlock panel](#the-two-promises-seen-in-the-padlock-panel)
+11. [Certificates, SSL, and why HTTPS isn't the default](#certificates-ssl-and-why-https-isnt-the-default)
+12. [The threat: what the S defends against](#the-threat-what-the-s-defends-against)
+13. [Questions raised in this lesson](#questions-raised-in-this-lesson)
+14. [Easy to get wrong](#easy-to-get-wrong)
+15. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+16. [Terms locked in](#terms-locked-in)
+17. [Deliberately not covered yet](#deliberately-not-covered-yet)
+18. [Sources](#sources)
+
+---
+
+## Layer refresher first
+
+From the layers lesson:
+
+```
+Layer 7   the text          read by the program        (Application)  ← this lesson
+Layer 4   the port          read by the computer       (Transport)    ← TCP, last lesson
+Layer 3   the address       read by the routers        (Network)
+Layer 2   the chip's MAC    read by chips nearby       (Data Link)
+Layer 1   the carrying      wires and WiFi             (Physical)
+```
+
+TCP now delivers a perfect stream between the browser and the waiter on port 443. Ever since the layers lesson, the innermost envelope — Layer 7, the text, read only by the program — held a placeholder: *"please send me the homepage."* This lesson opens it and reads what is actually written there.
+
+---
+
+## The name
+
+**HTTP = HyperText Transfer Protocol.** A protocol — an agreed script, like DHCP's four lines and TCP's handshake. *Transfer* — it moves things. *HyperText* — the 1990 word for documents containing links to other documents, which is what web pages were.
+
+The name aged; the protocol now transfers everything — pages, images, video, and every piece of data the React frontend will ever ask the Java backend for. But at heart it is still what the name says: an agreed script for asking for things and receiving them.
+
+---
+
+## What the text actually says — a request
+
+The placeholder, replaced with reality. When a browser asks for a homepage, the innermost envelope literally contains lines of ordinary readable text — not a simplification, the actual format:
+
+```
+GET / HTTP/1.1
+Host: github.com
+```
+
+Two lines.
+
+**Line 1, word by word:**
+
+- `GET` — the **method**: what kind of action this is. GET means *"give me something."*
+- `/` — the **path**: *which* something. A bare slash means "the front page."
+- `HTTP/1.1` — which version of the script both sides are speaking.
+
+**Line 2:** `Host: github.com` — extra information attached to the request. Lines like this are called **headers**, and there can be many.
+
+---
+
+## The path — the old ports-lesson question, answered
+
+The ports lesson raised a question and deferred it: *if `https://api.github.com` still means port 443, how does the request ask for specific things and not just the homepage?* Here is the answer.
+
+A fuller address, with each piece finding its home in known machinery:
+
+```
+https://  api.github.com  /users/bishwas
+   │            │              │
+   │            │              └── the PATH → goes into the text, line 1
+   │            └── the NAME → DNS turns it into an IP (Layer 3, the address line)
+   └── the port choice → 443 (Layer 4, the port line)
+```
+
+The part after the name — `/users/bishwas` — never touches DNS, never touches routing. It goes **inside the innermost envelope**, as the path:
+
+```
+GET /users/bishwas HTTP/1.1
+Host: api.github.com
+```
+
+The waiter reads the path and decides what to send back. Different paths, different answers, same machine, same port. One URL is really three different layers' worth of instructions, split apart by the browser and reassembled as a journey.
+
+---
+
+## Methods — the verbs
+
+GET is one of a small set of verbs. Four cover nearly everything, and the project uses all four:
+
+```
+GET      give me something            React asks Java: the list of items
+POST     here's something new         React sends Java: a new signup form
+PUT      replace something            React sends Java: an edited profile
+DELETE   remove something             React asks Java: delete this item
+```
+
+POST and PUT also carry a **body** below the headers: the actual data being sent. Signing up for a site sends something shaped like:
+
+```
+POST /signup HTTP/1.1
+Host: github.com
+
+username=bishwas&email=...
+```
+
+Method, path, version, headers, blank line, body. That is the anatomy of every request the web has ever made. In deployment, "the frontend calls the backend" means concretely: React writes `GET /api/items HTTP/1.1` into an envelope stack addressed to the Java waiter.
+
+---
+
+## Why Host matters more than it looks
+
+The envelope stack already carries the destination IP at Layer 3 — the address line the routers read. So why does the *text* repeat the destination name?
+
+Because names are cheap, and one computer often serves **many names**. A small hosting company might run a thousand websites' worth of names, all pointing at one machine, one IP, one waiter on port 443. When a request arrives, the IP got it to the building and the port got it to the waiter — but *which of the thousand websites* is this request for? The IP cannot say; they all share it.
+
+The `Host:` header is the answer: the one place the original *name* survives the journey. DNS threw the name away when it handed back a number — the Host header carries it into the innermost envelope, so the waiter can serve the right site.
+
+> **A single waiter, told apart by Host, serving many names.**
+
+In Part 5, this exact mechanism — reading Host and deciding where the request really goes — turns out to be the beating heart of NGINX, ingress, and much of modern infrastructure. It is the most load-bearing header on the internet.
+
+---
+
+## Reading a real capture from the browser
+
+Everything above can be seen live: in Chrome or Brave, open the developer tools (Option-Command-I on a Mac), click **Network**, visit `https://example.com`, click the first row, and read the **Headers** panel. What follows is a real capture, read line by line.
+
+### The General section
+
+```
+Request URL:      https://example.com/
+Request Method:   GET
+Status Code:      200 OK
+Remote Address:   172.66.147.243:443
+```
+
+**Remote Address `172.66.147.243:443`** is the DNS lesson and the ports lesson in one string: the browser asked a runner "what number is example.com?", got the IP, and chose 443 because the address began with `https`. Which machine, which program.
+
+### Request Headers — the taught format, in HTTP/2 clothing
+
+Modern browsers speak a newer version of the script (HTTP/2), which renames the first line's pieces as `:`-prefixed **pseudo-headers**. The taught format and the real screen are the same thing:
+
+| Taught (HTTP/1.1) | On screen (HTTP/2) | Value |
+|---|---|---|
+| `GET` (line 1) | `:method` | GET |
+| `/` (line 1) | `:path` | `/` |
+| `https` → port choice | `:scheme` | https |
+| `Host:` header | `:authority` | example.com |
+
+**`:authority` is the Host header, renamed.** The most load-bearing header on the internet, sitting at the top of the request — the surviving copy of the name, so a shared machine knows which site is wanted.
+
+The rest are all "extra information attached," each one the browser volunteering something:
+
+- **`Accept-Language: en-GB,en`** — "I'd prefer English." Why sites greet a visitor in the right language.
+- **`Accept-Encoding: gzip, deflate, br, zstd`** — "I can decompress these, feel free to compress the reply."
+- **`User-Agent: ...Chrome/151...`** — who is asking: browser and OS.
+- The `Sec-...` family — security-context breadcrumbs; headers, meanings deferred.
+
+That is all a header is: one labelled line of metadata riding with the request.
+
+### Response Headers — the server's half
+
+- **`Content-Type: text/html`** — "the body is a web page," which is how the browser knows to render rather than download it. A JSON response from an API instead carries `application/json` — the same mechanism the Java backend will use answering React.
+- **`Content-Encoding: br`** — the answer to Accept-Encoding: "compressed with br, as you allowed." Request offers, response chooses — headers *negotiate*.
+- **`Server: cloudflare`** — the waiter introduces itself. Not example.com's own machine; Cloudflare runs infrastructure in front of many sites.
+- **`Cf-Ray: ...-SYD` + `Cf-Cache-Status: HIT` + `Age: 13058`** — the request was answered by a Cloudflare computer in Sydney, from a cached copy ~3.6 hours old, instead of contacting the origin. Caching with an age — TTL thinking at Layer 7.
+
+---
+
+## Status codes — the response's verdict
+
+Every response opens with a number saying how it went. `200 OK` means "here's what you asked for, all fine." Its famous cousin `404` means "that path doesn't exist here." The families:
+
+```
+2xx   success                 200 OK
+3xx   "it moved, go there"    301 redirect
+4xx   your request's fault    404 not found, 403 forbidden
+5xx   the server's fault      500 crashed, 502 / 503 (DevOps daily bread)
+```
+
+The first digit tells you *whose problem it is*. That alone is half of web debugging.
+
+---
+
+## HTTPS — the S
+
+**HTTPS = HTTP Secure.** Not a different protocol: everything above — methods, paths, headers, status codes — is unchanged. The S changes only one thing: **who can read the envelopes in transit.**
+
+### The problem: postcards
+
+The text travels through the router, the ISP's routers, cables, junction after junction — every one a computer handling the envelope stack. From the layers lesson, every hop *opens the outer envelopes to do its job*, so it holds the whole stack in memory, including the Layer 7 text. With plain HTTP that text is ordinary characters, so **any hop on the path can read it** — no skill required, it is simply already there. And since NAT proved hops *can rewrite* envelopes in flight, a hop could also **change** the text, and neither end would know.
+
+Plain HTTP is a postcard: correct delivery, zero privacy, no tamper-proofing.
+
+### The fix: seal the innermost envelope
+
+HTTPS **encrypts** the entire HTTP conversation — scrambles it so only the browser and the real waiter can unscramble. What the hops see is noise:
+
+```
+plain HTTP through a router:   GET /login ... password=hunter2   ← readable
+HTTPS through a router:        x9$k#mQ...total gibberish...      ← noise
+```
+
+The envelope *stack* is unchanged — routers still read the IP, the port is visible, TCP still does numbers-and-receipts. Only Layer 7 is sealed:
+
+```
+Layer 3   address    still visible — routers need it
+Layer 4   ports      still visible — computers need it
+Layer 7   the text   SEALED — only the two ends can read or alter it
+```
+
+The Network tab shows readable headers because it shows the browser's *own* view from inside the seal, before encrypting. The wire carries noise.
+
+---
+
+## The two promises, seen in the padlock panel
+
+Encryption alone has a hole: scrambling is useless if done *for the wrong reader*. If someone on the path could sit in the middle — unsealing, reading, resealing toward the real site — the result is a perfectly encrypted conversation *with the attacker*. So HTTPS must deliver two things:
+
+```
+1. sealing    — nobody in between can read or alter the text
+2. identity   — provably sealed with the REAL site, not a middle impostor
+```
+
+The browser's padlock panel shows exactly these two, as two lines:
+
+- **"Connection is secure"** = promise 1, the seal is active; the path sees noise.
+- **"Certificate is valid"** = promise 2, the identity was checked.
+
+That is why the padlock means more than "encrypted" — it means *encrypted with the party that owns this name*.
+
+---
+
+## Certificates, SSL, and why HTTPS isn't the default
+
+A **certificate** is the server's identity document — a file asserting "the holder is really this name," signed by an authority the browser already trusts. Before sealing anything, the browser demands this document and checks it.
+
+**SSL is simply TLS's old name.** SSL came first (1990s), TLS replaced it, but the industry never stopped saying SSL — "SSL certificate" and "TLS certificate" are the same object.
+
+**Why certificates cost money and effort historically, and why HTTPS is not automatic:**
+
+- A certificate is issued **for one specific name**; its whole point is binding the seal to a name.
+- So it cannot be pre-installed — a fresh server does not know what name it will serve until its owner shows up with a domain.
+- Issuing requires **verifying the applicant controls that name** before signing. Historically, certificate authorities did this semi-manually and charged a yearly fee.
+
+Two things changed this:
+
+1. **Let's Encrypt** (a non-profit authority, ~2016) automated the control check and issues certificates free, auto-renewing. Paid certificates still exist; the notary-fee era is largely over for normal sites.
+2. **Front-door services like Cloudflare** obtain and hold a valid certificate automatically the moment a domain is connected, so the visitor's padlock lights up with zero owner effort — because visitors reach Cloudflare's computers, which carry the certificate.
+
+The doorman pattern from the domain lesson again: the mechanism is open, but there is a check at the gate. HTTP needs nothing; HTTPS needs a per-name, verified, expiring credential.
+
+---
+
+## The threat: what the S defends against
+
+The category has a name worth knowing: a **man-in-the-middle** attack — someone positioned *between* the browser and the real server, relaying traffic while reading or altering it. The two promises map onto defeating it:
+
+```
+reading the postcard      ← defeated by promise 1: the seal (they see noise)
+impersonating the server  ← defeated by promise 2: identity (the certificate)
+```
+
+The uncomfortable structural fact: the hops handling traffic are machines *other people control* — the café WiFi box, the ISP, any router on the path. Plain HTTP asks a visitor to trust every one. Most are fine; "most" is not good enough for a password.
+
+**Why this is a DevOps responsibility, not trivia:** every promise in that padlock panel is something the engineer must *provide* when deploying — the certificate on the server, the redirect that refuses plain HTTP, the seal reaching all the way to the machine. Understanding the threat is how one knows why each setting is non-negotiable, and how to recognise when a setup has left a gap.
+
+> The goal is not to attack the middle. It is to make the middle irrelevant: seal end-to-end and verify identity, and the middle is powerless even when it exists.
+
+---
+
+## Questions raised in this lesson
+
+### How does a hop actually read or alter the text?
+
+The reading is not an action anyone performs — it is automatic. A router must receive the whole envelope stack into memory to read the Layer 3 address and forward it; with plain HTTP, the Layer 7 text is sitting right there in ordinary characters. Altering is possible because, as NAT showed, a hop *can* rewrite envelopes in flight. The defensive fact is complete without the method: anything on the path can be a middle, so seal end-to-end and verify identity, and the middle becomes powerless. (The exact interception method is an attack recipe and deliberately not recorded — the useful knowledge is the defence.)
+
+### When I connect a domain to Cloudflare, why does HTTPS "just work," when I used to buy an SSL certificate?
+
+Same system, two eras. Previously: a certificate authority verified name control semi-manually and charged a yearly fee, and the certificate was installed by hand. Now: Let's Encrypt automated verification and made it free, and front-door services like Cloudflare obtain and hold the certificate automatically when a domain is connected — so the padlock appears with no manual step. The certificate still exists and is still per-name and expiring; the obtaining and installing were automated away.
+
+*(One honest asterisk deferred to the TLS lesson: if the seal is between the visitor and Cloudflare's front door, what protects the leg from Cloudflare onward to the actual origin server? A real question with real settings behind it.)*
+
+---
+
+## Easy to get wrong
+
+**HTTPS is HTTP plus a seal, not a separate protocol.** Every HTTP concept — methods, paths, headers, status codes — is identical under HTTPS. Only readability-in-transit changes.
+
+**The padlock means two things, not one.** Encrypted *and* identity-verified. Encryption alone, to the wrong party, is worthless — which is why a certificate exists.
+
+**HTTP/2 pseudo-headers are the old first line, relabelled.** `:method`, `:path`, `:scheme`, `:authority` are GET, the path, https, and Host. Same information, restructured.
+
+**Host / `:authority` is not redundant with the IP.** The IP finds a shared machine; Host picks which of its many sites the request is for. This single header underpins Part 5.
+
+**Status code first digit = whose fault.** 4xx is the request's fault, 5xx is the server's. Reading that digit first saves enormous debugging time.
+
+**Readable headers in dev tools do not mean the wire is readable.** Dev tools show the browser's own inside-the-seal view. On the wire, HTTPS traffic is noise.
+
+**Certificates expire.** A forgotten renewal breaks HTTPS for every visitor at once — the TLS equivalent of a missed domain renewal. Automation exists precisely because this failure is so common and so total.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| A web request | Something the browser does invisibly | Plain readable text — method, path, version, headers, optional body — in the innermost envelope |
+| A URL | One indivisible address | Three layers' instructions: scheme→port, name→DNS→IP, path→the text |
+| Headers | Mysterious technical noise | Labelled metadata lines that negotiate language, compression, content type, and identity |
+| The Host header | Redundant with the IP | The name's sole survivor; how one machine serves many sites; the keystone of Part 5 |
+| HTTPS | A wholly different, safer web | HTTP unchanged, wrapped in a seal; only Layer 7 readability changes |
+| The padlock | "It's encrypted" | Encrypted *and* verified as the real name-owner — two promises |
+| SSL certificate | Something obscure you buy | A per-name identity document; SSL = TLS's old name; now often free and automatic |
+| The threat | Vague "hackers" | The man-in-the-middle — any path hop is a candidate; the seal + certificate make it powerless |
+
+---
+
+## Terms locked in
+
+- **HTTP (HyperText Transfer Protocol)** — the Layer 7 script for asking for and receiving things
+- **method** — the verb: GET, POST, PUT, DELETE
+- **path** — which resource; goes in the request text, not DNS or routing
+- **header** — a labelled metadata line attached to a request or response
+- **Host / `:authority`** — the surviving name; lets one machine serve many sites
+- **body** — the data payload below the headers (POST/PUT requests, most responses)
+- **status code** — the response's opening verdict; first digit = whose problem (2/3/4/5xx)
+- **HTTPS** — HTTP sealed by TLS: encrypted and identity-verified
+- **certificate** — the server's per-name identity document, signed by a trusted authority
+- **SSL** — TLS's old name; "SSL certificate" = "TLS certificate"
+- **man-in-the-middle** — an attacker on the path; defeated by the seal (reading) and the certificate (impersonation)
+- **Let's Encrypt** — the free, automated certificate authority that ended the notary-fee era
+
+---
+
+## Deliberately not covered yet
+
+- **TLS mechanics** — how the seal is agreed in public without eavesdroppers learning the secret, and how a certificate cannot be forged; next lesson (12)
+- **The Cloudflare-to-origin leg** — what secures traffic past the front door; TLS lesson
+- **How attackers get into the middle** — deliberately not recorded; defensive knowledge is complete without it
+- **Cookies, authentication headers, sessions** — the headers that carry identity *of the user*; introduced when the project needs logins
+- **VPN** — a different security tool that seals *all* traffic one layer lower; its own lesson (15), after firewalls
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| HTTP semantics (methods, status codes, headers) | RFC 9110 | https://www.rfc-editor.org/rfc/rfc9110.html |
+| HTTP/1.1 message format | RFC 9112 | https://www.rfc-editor.org/rfc/rfc9112.html |
+| HTTP/2 (the pseudo-headers seen in dev tools) | RFC 9113 | https://www.rfc-editor.org/rfc/rfc9113.html |
+| HTTPS (HTTP over TLS) | RFC 9110, section on https URIs | https://www.rfc-editor.org/rfc/rfc9110.html |
+| Let's Encrypt, how automated issuance works | Let's Encrypt — How It Works | https://letsencrypt.org/how-it-works/ |
+| Readable overview | MDN — An overview of HTTP | https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview |
+
+> **Source note:** RFC 9110 (2022) consolidated decades of older HTTP specifications into one current document. The status-code families and method definitions all live there.
+
+---
+
+*End of Lesson 11. Next: TLS — how the seal is agreed in the open and how a certificate proves identity.*

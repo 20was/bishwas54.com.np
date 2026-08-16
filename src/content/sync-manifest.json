@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "sourceRepository": "20was/self-learn-docs",
-  "sourceCommit": "a44ccd996ebabf9acef9e9a9b202ae7d1ce8bd5b",
+  "sourceCommit": "3f0f61bfe8f981d7e2df76504d74d89707634b52",
   "documents": {
     "net-foundations-01": {
       "sourcePath": "networking-lab/01-foundations/01-what-networking-is-and-ip-addresses.md",
@@ -112,6 +112,15 @@
       "slug": "tcp-vs-udp",
       "route": "devops-networking/tcp-vs-udp",
       "bodyHash": "sha256:53a5d79a355a441d7c5831cfc10ce83d0c4ed448ff93e423e5e41bdadd4e2709",
+      "status": "published"
+    },
+    "net-foundations-11": {
+      "sourcePath": "networking-lab/01-foundations/11-http-and-https.md",
+      "targetPath": "src/content/tutorials/devops-networking/http-and-https.mdx",
+      "collection": "tutorials",
+      "slug": "http-and-https",
+      "route": "devops-networking/http-and-https",
+      "bodyHash": "sha256:45c7ea642a348900b65872e3543a93412ba3ca63a0b7fd5af5e47974d1109e4a",
       "status": "published"
     }
   }
