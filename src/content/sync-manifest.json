@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "sourceRepository": "20was/self-learn-docs",
-  "sourceCommit": "3113202c18c7e239ee5fd4efd0a321e61728993c",
+  "sourceCommit": "a3d0bc016e71da1dc86cc9f91c4d13d493c8b8c0",
   "documents": {
     "net-foundations-01": {
       "sourcePath": "networking-lab/01-foundations/01-what-networking-is-and-ip-addresses.md",
@@ -139,6 +139,24 @@
       "slug": "firewalls",
       "route": "devops-networking/firewalls",
       "bodyHash": "sha256:bb2af598ad5a5299d937ec92fdd3270c6f13fed0257aaf6469382715272c60f6",
+      "status": "published"
+    },
+    "net-foundations-14": {
+      "sourcePath": "networking-lab/01-foundations/14-troubleshooting-tools.md",
+      "targetPath": "src/content/tutorials/devops-networking/troubleshooting-tools.mdx",
+      "collection": "tutorials",
+      "slug": "troubleshooting-tools",
+      "route": "devops-networking/troubleshooting-tools",
+      "bodyHash": "sha256:f87b1237535bbb8e4aea431cf0d91489e04511f30e06515a914e75895b90079d",
+      "status": "published"
+    },
+    "net-foundations-15": {
+      "sourcePath": "networking-lab/01-foundations/15-vpn.md",
+      "targetPath": "src/content/tutorials/devops-networking/vpn.mdx",
+      "collection": "tutorials",
+      "slug": "vpn",
+      "route": "devops-networking/vpn",
+      "bodyHash": "sha256:27a874c27154273ecd05ab155bd4a21bc8c1c2b02d66865a017f2a52d7b533b3",
       "status": "published"
     }
   }
