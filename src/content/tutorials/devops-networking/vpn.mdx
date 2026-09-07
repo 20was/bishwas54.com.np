@@ -1,0 +1,315 @@
+---
+title: Lesson 15 — VPN
+description: VPN = Virtual Private Network.
+datePublished: 2026-09-07
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking
+  order: 15
+sourceId: net-foundations-15
+sourcePath: networking-lab/01-foundations/15-vpn.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 4 phases — the sealed tunnel, location by NAT, the physical servers, detection and honest limits (plus DNS leaks, streaming, pricing, and provider-side filtering)
+> **Builds on:** Lesson 01 (address blocks, servers), Lesson 04 (DNS runners), Lesson 09 (NAT), Lesson 11 (HTTPS, man-in-the-middle), Lesson 12 (the sealed key exchange), Lesson 13 (firewalls)
+
+---
+
+## Table of contents
+
+1. [The name](#the-name)
+2. [Phase 1 — the one core idea: a sealed tunnel](#phase-1--the-one-core-idea-a-sealed-tunnel)
+3. [What the airport WiFi sees, with and without](#what-the-airport-wifi-sees-with-and-without)
+4. [The DNS leak](#the-dns-leak)
+5. [Phase 2 — how your IP appears to be in another country](#phase-2--how-your-ip-appears-to-be-in-another-country)
+6. [Phase 3 — the physical servers, and building your own](#phase-3--the-physical-servers-and-building-your-own)
+7. [Phase 4 — detection, and the honest limits](#phase-4--detection-and-the-honest-limits)
+8. [Questions raised in this lesson](#questions-raised-in-this-lesson)
+9. [Easy to get wrong](#easy-to-get-wrong)
+10. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+11. [Terms locked in](#terms-locked-in)
+12. [Deliberately not covered yet](#deliberately-not-covered-yet)
+13. [Sources](#sources)
+
+---
+
+## The name
+
+**VPN = Virtual Private Network.** Every word is already known:
+
+- **Network** — machines that can reach each other (Lesson 01).
+- **Private** — using private addresses, unreachable from outside (Lessons 01 and 09).
+- **Virtual** — *not physically wired together.* This is the whole trick.
+
+A VPN makes a laptop behave as if plugged into a private network somewhere else, even while physically on airport WiFi. No cable runs there; the connection to that faraway network is faked — virtual — over the ordinary internet.
+
+---
+
+## Phase 1 — the one core idea: a sealed tunnel
+
+HTTPS sealed **one thing**: the Layer 7 text of *one conversation* with *one website*. The address and ports stayed visible so routers could work.
+
+A VPN seals **everything, one layer lower.** The laptop builds one big sealed pipe to a single computer — the **VPN server** — and stuffs *all* its traffic inside. Every envelope to every website, sealed together, addressed only to the VPN server.
+
+The pipe is called a **tunnel**, built with a protocol like **WireGuard**. When connected, a secure tunnel is established and all traffic is sent through it, encrypted. "Tunnel" is the right word: the envelopes travel through an opaque tube the outside cannot see into. (The seal itself is the key exchange from Lesson 12 — Surfshark's "Curve25519 key exchange" is that same paint-mixing idea with specific numbers.)
+
+---
+
+## What the airport WiFi sees, with and without
+
+The payoff is in the outer envelope — the part *every hop can read*, which even HTTPS left visible.
+
+**Without VPN**, opening facebook.com at the airport:
+
+```
+outer envelope the airport WiFi sees:
+   from: your laptop    to: facebook.com's IP    (visible!)
+```
+
+Even with HTTPS sealing *what* is sent, the address line reveals *where* — the airport knows you are on Facebook.
+
+**With VPN**, same action:
+
+```
+outer envelope the airport WiFi sees:
+   from: your laptop    to: VPN server IP    (that's ALL)
+   [inside, sealed, invisible: to facebook.com ... ]
+```
+
+The airport sees one thing: traffic to some VPN server. It cannot see any site, cannot read or alter anything, because even the address line it needs points at the VPN server, while the real destination is sealed *inside*.
+
+So the man-in-the-middle from Lesson 11 is defeated **wholesale**, for all traffic at once, one layer lower than HTTPS does it per-conversation.
+
+---
+
+## The DNS leak
+
+There is a crack, and it is important. From Lesson 04: **before** the laptop can send anything to facebook.com, it must ask a runner "what number is facebook.com?" By default that question goes to the runner the DHCP bundle handed over — usually the ISP's or the airport's.
+
+**The bad case — DNS escapes the tunnel:**
+
+```
+laptop → asks the AIRPORT's DNS runner: "what number is facebook.com?"   ← in the open!
+       → then sends the real traffic sealed through the tunnel
+```
+
+The traffic is sealed — but the *DNS question* went to the airport in the clear. The airport cannot read the Facebook traffic, but it just watched the laptop *ask for Facebook's address*. It knows which site is being visited, from the lookup alone. This is a **DNS leak**, and it quietly defeats the point.
+
+**The good case — DNS goes through the tunnel:**
+
+```
+laptop → sends the DNS question ITSELF sealed through the tunnel
+       → the VPN server does the lookup on your behalf, at the far end
+```
+
+Now the airport sees only sealed tunnel traffic — no readable question, no site names.
+
+So the rule: **the DNS lookup must go through the tunnel and be answered at the far end** — not the ISP's runner, not the airport's, not even Cloudflare's if reached *outside* the tunnel. It was never about *which* runner; it is about *which side of the tunnel* the question is asked on. A good VPN app forces every DNS question into the tunnel (Surfshark's "private DNS on every server" is exactly this fix).
+
+---
+
+## Phase 2 — how your IP appears to be in another country
+
+This is pure NAT (Lesson 09) from a new angle. Follow one envelope, laptop in Sydney, VPN server set to Japan:
+
+**Half 1 — inside the tunnel (Sydney → Japan).** The laptop seals the whole envelope and addresses the *outer* one to the Japan server. It crosses the internet as "you → VPN Japan," sealed, and arrives.
+
+**Half 2 — the server unwraps and forwards.** The Japan server opens the tunnel, finds the real envelope inside (for facebook.com), and sends it onward *from itself* — rewriting the sender line to its own address, exactly as a home router does in NAT:
+
+```
+your real envelope inside tunnel:   from YOU              to facebook.com
+Japan server forwards it as:        from JAPAN-SERVER-IP  to facebook.com
+```
+
+So the envelope that *arrives* at Facebook has a Japanese sender. Facebook replies to the Japan server, which stuffs the reply back through the tunnel to Sydney.
+
+**Facebook never saw you** — only the Japan server, because that server was the last to rewrite the sender line. "Your IP in another country" is not the laptop pretending; it is **borrowing the VPN server's address**, the same way every device in a house borrows the router's public address.
+
+That is the entire country-switch: the VPN server does NAT on your behalf, so the world sees the server's location. Switch to Germany, and the sender line is rewritten to a German address instead. This is also why region-locked content works: the content provider only sees the server's country.
+
+---
+
+## Phase 3 — the physical servers, and building your own
+
+**A VPN provider rents real computers in real buildings, in many countries.** That is the whole secret. "Having Japan" means renting a computer in a physical Japanese data center, which has a Japanese public IP because its ISP gave it one — exactly like a home router got one. "Switch to Germany" means the laptop builds its tunnel to a *different* computer, physically in a German data center.
+
+```
+The provider's actual system, stripped bare:
+   a computer in Tokyo      with a Japanese IP     running the tunnel software
+   a computer in Frankfurt  with a German IP       running the tunnel software
+   a computer in New York   with a US IP           running the tunnel software
+   ... a few thousand more, in ~100 countries ...
+```
+
+No "virtual countries." **Country = a physical computer in that country.** The app's country list is really the list of rentable exit computers; the IP you appear to have is that computer's real IP.
+
+Each such computer runs two pieces of software, both already understood:
+
+1. **The tunnel endpoint** — does the sealed key exchange (Lesson 12) and unwraps traffic.
+2. **NAT forwarding** — the Lesson 09 rewrite: swap the sender to this computer's IP, forward, remember the entry so replies return.
+
+**Can you build one? Yes.** Every piece is known:
+
+```
+1. Rent a computer in some country        (a cloud machine — Part 2 teaches this)
+   → it comes with a public IP in that country
+2. Install tunnel software on it           (WireGuard, free and open)
+3. Configure the laptop to tunnel to it
+4. Turn on NAT forwarding on the computer   (the Lesson 09 rewrite)
+```
+
+That is a one-country personal VPN — a common weekend project once Part 2 is done.
+
+**So what does a paid provider sell?** Not secret technology — *scale and convenience*: thousands of computers in ~100 countries for instant switching; a polished app that forces DNS through the tunnel (the leak fix); and shared IPs where thousands of users sit behind each server (CGNAT again, Lesson 09), blending each user into a crowd. That last point is the bridge to detection.
+
+---
+
+## Phase 4 — detection, and the honest limits
+
+### How sites detect a VPN
+
+Both clues were already assembled elsewhere:
+
+**Clue 1 — the IP belongs to a data center, not a home.** From Lesson 01, IANA hands address blocks to organisations, and which block went to whom is public. A home connection's IP sits in a *residential* ISP's block; a rented server's IP sits in a *data center's* block. When a service sees a request from a data-center IP, it reasons: real people watch from home, not from inside a server rack — probably a VPN.
+
+**Clue 2 — thousands share one IP.** The crowd-blending from phase 3 cuts both ways. Thousands of users exiting one server means a website sees thousands of people arriving from one address. No household is that large. Services keep constantly-updated lists of these known VPN IPs.
+
+So "you appear to be using a VPN" is never the site seeing *through* the tunnel — the seal holds. It is the site recognising the *exit IP* by its ownership and traffic pattern. The tunnel is intact; the endpoint wears a name tag.
+
+### The honest limits — the part that matters most
+
+The VPN server *unwraps* the traffic to forward it. Therefore:
+
+> The VPN provider sees everything the airport WiFi would have seen.
+
+A VPN does not make traffic invisible. It **moves who can see it** — from the airport, the ISP, and every hop on the first leg, *to the VPN company*. A VPN is a **trust transfer**, not a cloak. Whether it is a good trade depends on who you would rather trust: a stranger's airport box, or a paid company with a reputation.
+
+And **HTTPS was already protecting the contents** (Lesson 11). The airport already could not read a password on `https://bank.com`. What it *could* see was metadata — *that* bank.com was visited (via the DNS question and destination IP). So what a VPN adds on top of HTTPS is mostly **hiding the metadata** — which sites, not what was sent.
+
+```
+HIDES from the local network:   which sites you visit (the metadata)
+DOES NOT hide from:             the VPN provider itself (they see it all)
+DOES NOT add secrecy that:      HTTPS wasn't already providing for contents
+CHANGES:                        your apparent location, by borrowing the server's IP
+```
+
+**Genuinely useful for:** untrusted WiFi (moving trust off a stranger's box), changing apparent region, and hiding browsing metadata from an ISP that logs or sells it.
+
+**Mostly theater for:** "anonymity" (the VPN knows exactly who you are — you paid them) and "security" against the site visited (HTTPS already handled that, and the VPN server is now an *extra* party who can see the traffic, not fewer).
+
+---
+
+## Questions raised in this lesson
+
+### How does Netflix give (or block) other-country content when it knows about the VPN?
+
+Detecting a VPN and *blocking* it are different choices. Detecting is easy (the exit IP). What to do is a business decision, deliberately inconsistent, because of a tension: licensing contracts require Netflix to be *seen* enforcing regions, but VPN users are still paying customers whom aggressive banning would lose. So they enforce the minimum — block the big known VPN exit IPs, and not much beyond:
+
+```
+Netflix + well-known VPN server   → "you seem to be using a proxy" (blocked)
+Netflix + a fresh / obscure IP    → often just works
+```
+
+VPN companies rotate to new IPs (even residential ones, defeating clue 1); Netflix updates its blocklist. Neither fully wins, because a total block would punish paying users. Note: using a VPN for another region's catalogue violates Netflix's terms of service — rarely account-banned, but against the rules, not a supported feature.
+
+### Why doesn't a VPN reliably get the cheaper subscription price in another country?
+
+Because it fixes the wrong layer. Cheaper regional prices (Netflix, Spotify, YouTube Premium in India, Turkey, etc.) are gated by **payment method**, not network location. The service checks that the card is issued in the cheap country. A VPN rewrites the *network* sender line (phase 2) but does nothing to the *card*:
+
+```
+VPN sets apparent location to India     ✓  (network layer)
+But the card is still foreign           ✗  (payment layer — VPN can't touch this)
+   → checkout rejects it or bills the real-region price
+```
+
+The same layers lesson that runs through the whole track: the VPN operates at the network layer, the price gate at the payment layer, and fixing one does not fix the other. Faking billing details to obtain a foreign price does violate terms and can close an account.
+
+### The "Surfshark blocked this site as unsafe" warning — is that the tunnel's middle position?
+
+Yes. The VPN server sits in the middle of every path (phase 1), so every requested site passes *through* it before reaching the destination. That position lets it run a **firewall** (Lesson 13) — Surfshark markets it as "CleanWeb" — checking each destination against a blocklist:
+
+```
+your request → tunnel → VPN server → checks destination against a blocklist
+                                      → on the list?  DROP + show the warning
+                                      → not on it?    forward to the real site
+```
+
+The warning is the VPN server, mid-path, refusing to forward — not the website or the laptop. It is the same middle position as a man-in-the-middle, opposite intent: a hostile middle attacks, a trusted middle filters. Same capability underlies both — which is exactly why the trust-transfer point matters: letting the VPN be the middle is what lets it filter *and* what lets it see everywhere you go. Being a rulebook, it has false positives (a trusted site wrongly flagged); CleanWeb can be disabled or the site whitelisted.
+
+---
+
+## Easy to get wrong
+
+**A VPN hides sites from the local network, not from the VPN provider.** The provider unwraps everything. Trust moved; it did not vanish.
+
+**HTTPS already protected contents.** A VPN's real addition is metadata hiding, not content secrecy. "A VPN makes me secure" overstates it.
+
+**A VPN is not anonymity.** The provider knows who you are — you paid them, and your real IP built the tunnel.
+
+**DNS can leak outside the tunnel.** Sealed traffic with an unsealed DNS question still reveals which sites are visited. A correct VPN forces DNS through the tunnel.
+
+**"Country" is a physical machine.** Apparent location is a real rented computer's real IP, not a spoof. This is why detection by IP ownership works.
+
+**Detection is about the exit IP, not seeing through the seal.** Sites recognise data-center and shared IPs; they never read the tunnel's contents.
+
+**A VPN and a firewall can be the same box.** The provider's middle position lets it filter — protection and surveillance are the same capability.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| What a VPN does | Makes you anonymous and secure | Seals all traffic to one server, hiding site metadata from the local network — a trust transfer, not a cloak |
+| The "connection" to another country | Magic / spoofing | A real rented computer there; you borrow its IP via NAT |
+| Location change | The laptop lies about where it is | The VPN server does NAT; the world sees the server's real location |
+| Building a VPN | Impossible without special tech | A rented cloud machine running a tunnel + NAT — a weekend project after Part 2 |
+| Why sites block VPNs | They see through the tunnel | They recognise the exit IP as a data-center or shared address; the seal is never broken |
+| A VPN vs HTTPS | The VPN is what keeps me safe | HTTPS already sealed contents; the VPN mainly hides which sites (metadata) |
+| VPN provider trust | Neutral / invisible | The one party that sees everything — the whole security question is whether you trust them |
+| The "unsafe site" block | The website or my laptop blocked it | The VPN server, mid-path, running a firewall on the traffic passing through it |
+
+---
+
+## Terms locked in
+
+- **VPN (Virtual Private Network)** — one sealed tunnel carrying all traffic to a VPN server that forwards it onward
+- **tunnel** — the sealed pipe from the laptop to the VPN server; carries everything
+- **VPN server / exit node** — the rented computer that unwraps the tunnel and forwards via NAT; its IP becomes your apparent address
+- **DNS leak** — a DNS question sent outside the tunnel, revealing visited sites despite sealed traffic
+- **trust transfer** — the core truth: a VPN moves who can see your traffic (local network → provider), it does not make it invisible
+- **exit IP** — the VPN server's address, which the world sees and which detection recognises
+- **WireGuard** — a modern tunnel protocol; the sealing is the Lesson 12 key exchange
+
+---
+
+## Deliberately not covered yet
+
+- **The exact tunnel protocol mechanics** (WireGuard internals) — the sealing is Lesson 12's idea; the specifics are beyond this track
+- **Corporate VPNs** — the same tunnel used the other direction, to reach a company's *private* network from outside; appears naturally once private networks are built in Part 2
+- **Split tunneling** — sending only some traffic through the tunnel; a configuration detail, deferred
+- **Tor and true anonymity systems** — a different design that spreads trust across many parties instead of one; out of scope, noted so it is not confused with a VPN
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| WireGuard, the modern tunnel protocol | WireGuard whitepaper | https://www.wireguard.com/papers/wireguard.pdf |
+| How VPNs work (vendor-neutral overview) | Cloudflare Learning — What is a VPN? | https://www.cloudflare.com/learning/access-management/what-is-a-vpn/ |
+| DNS leaks explained | Cloudflare Learning — What is a DNS leak? | https://www.cloudflare.com/learning/dns/what-is-a-dns-leak/ |
+| Data-center vs residential IP classification | IANA number resources (whose blocks are whose) | https://www.iana.org/numbers |
+
+> **Source note:** the "trust transfer" framing is deliberately emphasised because most consumer VPN marketing implies anonymity or blanket security that the architecture does not provide. The technical claims here — sealed tunnel, NAT-based exit IP, DNS-through-tunnel, IP-based detection — are all standard and vendor-neutral, even where a specific provider (Surfshark) was used as the running example.
+
+---
+
+*End of Lesson 15. Pending from Part 1: Lesson 14 (troubleshooting tools) — held until a laptop is available, since it is hands-on.*

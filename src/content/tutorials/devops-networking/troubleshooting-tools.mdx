@@ -1,0 +1,382 @@
+---
+title: Lesson 14 — Troubleshooting Tools
+description: dig asks a DNS runner a question and prints the full answer.
+datePublished: 2026-09-07
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking
+  order: 14
+sourceId: net-foundations-14
+sourcePath: networking-lab/01-foundations/14-troubleshooting-tools.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 5 tools — dig, curl, ss, ping, traceroute — each making an earlier lesson visible
+> **Builds on:** every foundations lesson; this one *proves* them on a real machine
+>
+> Every command output below is real, captured on the author's machine (macOS, Australia, September 2026). Addresses and timings are genuine — which is the point: the theory shows up in real data, not invented examples.
+
+---
+
+## Table of contents
+
+1. [dig — watching DNS resolve](#dig--watching-dns-resolve)
+2. [Watching the TTL count down](#watching-the-ttl-count-down)
+3. [curl -v — the whole back half of Part 1 on one screen](#curl--v--the-whole-back-half-of-part-1-on-one-screen)
+4. [ss — every waiter on your machine](#ss--every-waiter-on-your-machine)
+5. [ping — reachability and distance](#ping--reachability-and-distance)
+6. [traceroute — the ladder of routers, named](#traceroute--the-ladder-of-routers-named)
+7. [Easy to get wrong](#easy-to-get-wrong)
+8. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+9. [Terms locked in](#terms-locked-in)
+10. [Deliberately not covered yet](#deliberately-not-covered-yet)
+11. [Sources](#sources)
+
+---
+
+## dig — watching DNS resolve
+
+`dig` asks a DNS runner a question and prints the full answer. It is Lesson 04 made visible.
+
+```
+$ dig github.com
+
+;; QUESTION SECTION:
+;github.com.                    IN      A
+
+;; ANSWER SECTION:
+github.com.             60      IN      A       4.237.22.38
+
+;; Query time: 15 msec
+;; SERVER: 8.8.8.8#53(8.8.8.8)
+```
+
+The answer line is the entire DNS lesson in one row:
+
+```
+github.com.    60    IN    A    4.237.22.38
+     │         │           │         │
+     │         │           │         └── the IPv4 address for the name
+     │         │           └── record type: "A" = "the IPv4 address"
+     │         └── the TTL — how many seconds this may be cached (Lesson 04)
+     └── the name asked about
+```
+
+- **`60` is the TTL** — the "you may remember this for N seconds" from Lesson 04, literal. GitHub set a short 60-second TTL.
+- **`A`** is the record type — one of the "record types" deferred in Lesson 04. "A" means "give me the IPv4 address."
+- **`SERVER: 8.8.8.8#53`** confirms two things from theory: the runner is Google's `8.8.8.8` (Lesson 04), reached on **port 53** (Lesson 02's well-known DNS port).
+- **`Query time: 15 msec`** — fast, because the answer came from `8.8.8.8`'s cache, not a fresh walk of root → `.com` → GitHub.
+
+Hidden in the full output is also this line:
+
+```
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 512
+```
+
+The word **`udp`** — the DNS question rode UDP (Lesson 10's "just throw it"). Tiny question, tiny answer, ask-again-if-lost. The theory said DNS uses UDP; the machine proved it.
+
+---
+
+## Watching the TTL count down
+
+Running `dig` repeatedly within one TTL window shows the cache aging in real time.
+
+```
+22:16:25   github.com.    60    IN    A    4.237.22.38     ← fresh fetch, full 60
+22:17:02   github.com.    44    IN    A    4.237.22.38     ← 37s later, 44 left
+```
+
+The TTL dropped from `60` to `44`. `8.8.8.8` is saying "I fetched this 16 seconds ago, so you may keep it for **44** more." Every second, that number falls by one — a live countdown to expiry. Let it reach 0 and the next query jumps back to `60`: expired, refetched, reset.
+
+> This is Lesson 04's "nothing stale survives forever," visible as a ticking number. Query time stays tiny (7–15 ms) throughout because every hit is served from Google's cache; a name nobody has looked up recently would show 100 ms+, revealing a real chain-walk.
+
+---
+
+## curl -v — the whole back half of Part 1 on one screen
+
+`curl -v` makes a full web request and prints every layer as it happens: DNS, TCP, TLS, HTTP. Lessons 10, 11, and 12 in sequence.
+
+```
+$ curl -v https://github.com
+
+* Host github.com:443 was resolved.
+* IPv4: 4.237.22.38
+* Trying 4.237.22.38:443...
+* Connected to github.com (4.237.22.38) port 443
+
+* TLS handshake, Client hello (1):
+* TLS handshake, Server hello (2):
+* TLS handshake, Certificate (11):
+* TLS handshake, CERT verify (15):
+* TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / AEAD-CHACHA20-POLY1305-SHA256
+
+* Server certificate:
+*  subject: CN=github.com
+*  subjectAltName: host "github.com" matched cert's "github.com"
+*  issuer: C=GB; O=Sectigo Limited; CN=Sectigo Public Server Authentication CA DV E36
+*  expire date: Nov 29 23:59:59 2026 GMT
+*  SSL certificate verify ok.
+
+* using HTTP/2
+> GET / HTTP/2
+> Host: github.com
+> User-Agent: curl/8.7.1
+> Accept: */*
+
+< HTTP/2 200
+< date: Mon, 07 Sep 2026 12:17:39 GMT
+< content-type: text/html; charset=utf-8
+```
+
+Read top to bottom, it is Part 1's second half in order.
+
+**DNS + port (Lessons 04, 02):**
+```
+* Host github.com:443 was resolved.   ← DNS lookup done first, silently
+* IPv4: 4.237.22.38                    ← the address (matches dig)
+* Trying 4.237.22.38:443              ← port 443 chosen because "https"
+```
+
+**TCP connects (Lesson 10):**
+```
+* Connected to github.com (4.237.22.38) port 443
+```
+"Connected" means the TCP three-way handshake completed — SYN, SYN-ACK, ACK. curl doesn't print the three, but "Connected" is their success.
+
+**TLS handshake (Lesson 12), line by line, in exact taught order:**
+```
+Client hello (1)     ← Step 1: "hello + my paint blend"
+Server hello (2)     ← Step 2: "here's my blend"
+Certificate (11)     ← Step 2b: "here's my certificate" (the ID document)
+CERT verify (15)     ← Step 2c: "here's proof I own it" (the anti-impostor signature)
+Finished (20)        ← Step 4: "switching to sealed mode"
+```
+The `CERT verify` line is the proof-of-ownership step — the one that kills the impostor. The lesson claimed the server signs *this* handshake's values freshly; here the machine does it and prints the line.
+
+**The seal, confirmed:**
+```
+* SSL connection using TLSv1.3 / AEAD-CHACHA20-POLY1305-SHA256
+```
+TLS 1.3 (the current version from Lesson 12) and the specific scramble method agreed. Everything after this is encrypted on the wire.
+
+**The certificate, read out — the padlock panel from Lesson 11, in text:**
+```
+subject: CN=github.com              ← who it's FOR
+subjectAltName ... matched          ← the name check PASSED (promise 2)
+issuer: ... Sectigo ... CA ...      ← the Certificate Authority that signed it
+expire date: Nov 29 ... 2026        ← certificates expire (the renewal trap)
+SSL certificate verify ok.          ← "Certificate is valid" — the green check, as a line
+```
+`verify ok` is literally the "Certificate is valid" check from the browser padlock panel, spelled out. `issuer: Sectigo` is the real CA that vouched for github.com. The `expire date` is the ticking clock behind the "automate renewal or the whole site breaks" warning.
+
+**HTTP (Lesson 11) — the Network-tab capture again:**
+```
+> GET / HTTP/2
+> Host: github.com          ← the load-bearing header
+< HTTP/2 200                ← status code: all fine
+< content-type: text/html
+```
+
+The whole chain, in one command:
+```
+DNS lookup → TCP connect → TLS handshake → HTTP GET → 200 OK
+Lesson 04  →  Lesson 10  →  Lesson 12    → Lesson 11
+```
+
+---
+
+## ss — every waiter on your machine
+
+`ss` (or `netstat` on macOS) lists every open port and connection. It is Lesson 02's "waiters" made visible.
+
+```
+$ ss -tlnp 2>/dev/null || netstat -an -p tcp | grep LISTEN
+
+tcp4   127.0.0.1.5432    *.*   LISTEN     ← PostgreSQL (the project database)
+tcp6   ::1.5432          *.*   LISTEN     ← same PostgreSQL, IPv6 localhost
+tcp4   127.0.0.1.6379    *.*   LISTEN     ← Redis, standard port 6379
+tcp4   127.0.0.1.5037    *.*   LISTEN     ← Android Debug Bridge
+tcp4   *.8081            *.*   LISTEN     ← a dev server (high port)
+tcp4   *.5000            *.*   LISTEN     ← a dev server (high port)
+tcp4   *.7000            *.*   LISTEN     ← a dev server (high port)
+... many 127.0.0.1.<high-port> lines: apps holding local ports for internal use ...
+```
+
+Reading one line (macOS writes the port after a dot, not a colon):
+```
+tcp4    127.0.0.1.5432    *.*    LISTEN
+ │           │      │             │
+ │           │      │            └── waiting to be contacted (a "waiter", Lesson 02)
+ │           │      └── the port
+ │           └── the address it listens on
+ └── TCP (Lesson 10)
+```
+
+**The address column is the real lesson — it says WHO can reach each waiter:**
+```
+127.0.0.1.5432   →  localhost only — ONLY this machine can reach it
+*.5000           →  * = ALL addresses — reachable from the network
+```
+
+`127.0.0.1` (localhost, Lesson 13) means the waiter refuses everyone except this machine. `*` means it listens on every address the machine has — exposed. **PostgreSQL on 5432 listening on `127.0.0.1` is the correct, safe default** — a database should not be exposed (Lesson 09), and it is doing the right thing without configuration.
+
+**Every port here is above 1023.** Not one low port — Lesson 13 confirmed by absence: none of these programs runs as admin, so none could claim a low port even if it tried.
+
+---
+
+## ping — reachability and distance
+
+`ping` asks one tiny question — "are you there?" — and times the answer.
+
+```
+$ ping -c 4 github.com
+
+PING github.com (20.207.73.82): 56 data bytes
+64 bytes from 20.207.73.82: icmp_seq=0 ttl=105 time=425.463 ms
+64 bytes from 20.207.73.82: icmp_seq=1 ttl=105 time=423.653 ms
+64 bytes from 20.207.73.82: icmp_seq=2 ttl=105 time=426.410 ms
+64 bytes from 20.207.73.82: icmp_seq=3 ttl=105 time=424.173 ms
+
+4 packets transmitted, 4 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = 423.653/424.925/426.410/1.081 ms
+```
+
+**First, a mystery that proves a lesson.** `dig` and `curl` said github.com was `4.237.22.38`. `ping` says `20.207.73.82` — different number, same name. From Lesson 04: GitHub has many addresses and DNS hands out different ones. Same name, multiple machines, live.
+
+Reading a line:
+- **`icmp_seq=0,1,2,3`** — four probes, numbered so replies can be told apart (same idea as TCP sequence numbers, Lesson 10).
+- **`time=425 ms`** — the round trip. Slow, and it means something.
+- **`0.0% packet loss`** — all four arrived; nothing dropped (Lesson 10 said routers *may* drop; here none did).
+
+**The 425 ms is geography.** `dig` was 7 ms and `curl` connected fast because they used `4.237.22.38` — a GitHub address near Australia. This ping's `20.207.73.82` is physically far, and 425 ms is light and cable crossing much of the planet and back. Distance has a floor: the speed of light. This is *why* companies place servers near users (Lesson 11's Cloudflare-in-Sydney); 425 ms vs 7 ms is that reason, measured.
+
+**A trap in the word `ttl=105`.** This is **not** the DNS TTL from `dig`. Same word, unrelated meaning: this is the packet's **hop limit** — a counter that drops by one at each router and kills the packet at zero (so lost packets can't loop forever). Starting near 128 and arriving at 105 means ~23 routers were crossed. Networking reused "TTL" for two different things; knowing that prevents real confusion.
+
+---
+
+## traceroute — the ladder of routers, named
+
+`traceroute` reveals the actual router hops between you and a destination — Lesson 07's ladder, made real, one line per hop.
+
+```
+$ traceroute -m 15 github.com
+
+traceroute to github.com (20.207.73.82), 15 hops max
+ 1  * * *
+ 2  172.20.21.254               301.963 ms
+ 3  172.20.22.3                 300.830 ms
+ 4  * * *
+ 5  92.62.121.209               301.103 ms
+ 6  unn-149-88-19-189.datapacket.com   301.435 ms
+ 7  vl251.fra-itx7-core-2.cdn77.com    303.542 ms
+ 8  ae41-449.fra10.core-backbone.com   301.714 ms
+ 9  ae2-2025.fra30.core-backbone.com   301.991 ms
+10  ae64-0.ier02.fra34.ntwk.msn.net    325.033 ms
+11  po22.rwa04.fra26.ntwk.msn.net      424.520 ms
+12  be1011.owr02.fra26.ntwk.msn.net    426.274 ms
+13  be10.ibr01.fra23.ntwk.msn.net      424.396 ms
+14  be4.owr02.zrh24.ntwk.msn.net       424.897 ms
+15  be3.owr02.gva20.ntwk.msn.net       425.238 ms
+```
+
+Each numbered line is one router hop — the real boxes the packet passes through, in order. Lesson 07 said "a message climbs a ladder of routers, each forwarding to the next." This is that ladder, named.
+
+**The `* * *` lines (hops 1, 4):** not errors. Some routers forward the packet but stay silent about themselves (they don't reply to the probe) — Lesson 13's deliberate silence. The packet passed through; the router just didn't announce itself.
+
+**The names tell the geography — watch the cities appear:**
+```
+2-3    172.20.x.x            ← PRIVATE addresses (Lesson 09) — inside the ISP's own network
+5      92.62.121.209         ← the ISP hands off to the public internet
+6      datapacket.com        ← a transit network
+7      ...fra-itx7...cdn77   ← "fra" = FRANKFURT. Left Australia.
+8-9    ...fra...core-backbone ← still Frankfurt, a major backbone
+10-13  ...fra...msn.net      ← MICROSOFT's network (msn.net), still Frankfurt
+14     ...zrh24...           ← "zrh" = ZURICH
+15     ...gva20...           ← "gva" = GENEVA
+```
+
+Read the airport codes: **FRA → ZRH → GVA** (Frankfurt, Zurich, Geneva). A packet starting in Australia is routed *through Europe* to reach this GitHub address — which is Microsoft-owned (`msn.net`), because GitHub belongs to Microsoft. You can name every stop on a packet's trip across the planet.
+
+**The timing shift confirms distance:** hops 2–9 sit near 301 ms; from hop 10 (entering Microsoft's network) they jump to ~424 ms — matching the ping exactly, because ping measured the full round trip to this same far address. The numbers agree because they measure the same geography.
+
+**The private hops 2–3** show the boundary from Lesson 09: `172.20.x.x` is a private range, so the first couple of hops are *inside the ISP's own network* before reaching the public internet at hop 5.
+
+One command, and it proves: routing is hop-by-hop (Lesson 07), no router knows the whole path, private ranges live inside ISP networks (Lesson 09), silent routers drop-without-announcing (Lesson 13), and distance costs time.
+
+---
+
+## Easy to get wrong
+
+**Two unrelated things are both called "TTL".** In `dig`, TTL is how long a DNS answer may be cached (seconds). In `ping`/`traceroute`, "ttl" is a packet's hop limit (a router counter). Same word, different worlds — do not confuse them.
+
+**A different address for the same name is normal.** Big sites have many addresses; `dig`, `curl`, and `ping` may each get a different one. It is DNS load-spreading, not a bug.
+
+**`* * *` in traceroute is silence, not failure.** The hop still forwarded the packet; that router just declines to identify itself. The trace continues past it.
+
+**Round-trip time is mostly geography.** Latency has a speed-of-light floor. A slow `ping` to a far server is physics, not a broken network — which is the whole argument for putting servers near users.
+
+**Listening on `*` vs `127.0.0.1` is a security fact.** `127.0.0.1` means local-only; `*` means reachable from the network. Reading that column tells you what is exposed — a database on `*` is a red flag; on `127.0.0.1` it is safe.
+
+**"Connected" already means the TCP handshake succeeded.** Tools rarely print SYN/SYN-ACK/ACK; the word "Connected" is their success. If you never see it, the failure is at or below TCP, before any TLS or HTTP.
+
+---
+
+## Old way vs improved understanding
+
+| Tool | Old way of thinking | Improved understanding |
+|---|---|---|
+| dig | "Look up an IP" | Watch DNS resolve: name, TTL counting down, record type, which runner, port 53, over UDP |
+| curl -v | "Fetch a page" | Watch DNS → TCP handshake → TLS handshake (cert + verify) → HTTP GET → status, in order |
+| ss / netstat | "Some network list" | Every waiter on the machine, its port, and — crucially — whether it is local-only or exposed |
+| ping | "Check if it's up" | Reachability, packet loss, and round-trip time as a direct measure of distance |
+| traceroute | "Trace the route" | The real hop-by-hop router ladder, named — geography and ownership readable in the hostnames |
+| the word "TTL" | One concept | Two unrelated ones: DNS cache lifetime vs packet hop limit |
+
+---
+
+## Terms locked in
+
+- **dig** — query a DNS runner and print the full answer (name, TTL, record type, address, server, transport)
+- **A record** — a DNS entry giving a name's IPv4 address
+- **curl -v** — make a request and print every layer: DNS, TCP, TLS, HTTP
+- **ss / netstat** — list open ports and connections; reveals waiters and whether they are local-only or exposed
+- **ping** — probe reachability and round-trip time using ICMP
+- **traceroute** — reveal the router hops to a destination, one line per hop
+- **hop limit** — the packet counter (shown as "ttl" in ping/traceroute) that prevents infinite loops; unrelated to DNS TTL
+- **ICMP** — the simple "are you there / that failed" message type ping and traceroute use
+
+---
+
+## Deliberately not covered yet
+
+- **`nslookup`, `host`** — older DNS tools; `dig` shows more and is enough
+- **`tcpdump` / Wireshark** — capturing raw packets to read the envelopes byte by byte; powerful, and a deliberate next step once the cloud parts create traffic worth inspecting
+- **`nc` (netcat), `telnet`** — manually poking a single port to test reachability; introduced when a specific debugging need arises
+- **`mtr`** — a live, continuous traceroute; a nicety, not a new concept
+- **Cloud-specific tooling** — VPC reachability analysers, load-balancer health checks; Parts 2 and 4, where the network is one we build
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| dig and DNS query format | BIND / ISC dig manual | https://bind9.readthedocs.io/en/latest/manpages.html |
+| curl verbose output | curl manual | https://curl.se/docs/manpage.html |
+| ICMP (what ping and traceroute use) | RFC 792 | https://www.rfc-editor.org/rfc/rfc792.html |
+| ss / socket statistics | iproute2 ss manual | https://man7.org/linux/man-pages/man8/ss.8.html |
+| Readable overview of traceroute | Cloudflare Learning — What is traceroute? | https://www.cloudflare.com/learning/network-layer/what-is-traceroute/ |
+
+> **Source note:** every output block in this note is a real capture, lightly trimmed for width (full duplicate-address and byte-count lines removed). ICMP — the message type behind both ping and traceroute — is defined in RFC 792 from 1981 and, like ARP, still runs the internet today.
+
+---
+
+*End of Lesson 14 — and the end of Part 1's hands-on foundations. Next: the Part 1 consolidation capstone, tracing one complete request through all fourteen lessons at once.*
