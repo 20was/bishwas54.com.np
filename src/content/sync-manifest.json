@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "sourceRepository": "20was/self-learn-docs",
-  "sourceCommit": "28c40582aec878d34727d588283a639f719eb8a5",
+  "sourceCommit": "3113202c18c7e239ee5fd4efd0a321e61728993c",
   "documents": {
     "net-foundations-01": {
       "sourcePath": "networking-lab/01-foundations/01-what-networking-is-and-ip-addresses.md",
@@ -130,6 +130,15 @@
       "slug": "tls",
       "route": "devops-networking/tls",
       "bodyHash": "sha256:7360920d0387bd5c5da8692bddfc5782990c271411d7441e019e94845ab46695",
+      "status": "published"
+    },
+    "net-foundations-13": {
+      "sourcePath": "networking-lab/01-foundations/13-firewalls.md",
+      "targetPath": "src/content/tutorials/devops-networking/firewalls.mdx",
+      "collection": "tutorials",
+      "slug": "firewalls",
+      "route": "devops-networking/firewalls",
+      "bodyHash": "sha256:bb2af598ad5a5299d937ec92fdd3270c6f13fed0257aaf6469382715272c60f6",
       "status": "published"
     }
   }

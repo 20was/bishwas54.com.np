@@ -1,0 +1,266 @@
+---
+title: Lesson 13 — Firewalls
+description: 'Firewalls make decisions using the envelope layers already covered:'
+datePublished: 2026-09-07
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking
+  order: 13
+sourceId: net-foundations-13
+sourcePath: networking-lab/01-foundations/13-firewalls.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations
+> **Status:** Understood and closed
+> **Concepts covered:** 2 — the firewall checkpoint (allow/drop, default-deny, drop-vs-reject), and the long-owed reason low ports are protected
+> **Builds on:** Lesson 02 (ports, the deferred port-443 question), Lesson 08 (CIDR in rules), Lesson 09 (NAT's accidental blocking), Lesson 11 (man-in-the-middle), Lesson 12 (the TLS handshake on port 443)
+
+---
+
+## Table of contents
+
+1. [Layer anchor](#layer-anchor)
+2. [What a firewall is](#what-a-firewall-is)
+3. [What a rule looks like](#what-a-rule-looks-like)
+4. [Default deny — the safe stance](#default-deny--the-safe-stance)
+5. [Drop, not reject — a deliberate silence](#drop-not-reject--a-deliberate-silence)
+6. [NAT's accident vs the firewall's intent](#nats-accident-vs-the-firewalls-intent)
+7. [The debt: why low ports are protected](#the-debt-why-low-ports-are-protected)
+8. [Questions raised in this lesson](#questions-raised-in-this-lesson)
+9. [Where firewalls sit in real work](#where-firewalls-sit-in-real-work)
+10. [Easy to get wrong](#easy-to-get-wrong)
+11. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+12. [Terms locked in](#terms-locked-in)
+13. [Deliberately not covered yet](#deliberately-not-covered-yet)
+14. [Sources](#sources)
+
+---
+
+## Layer anchor
+
+Firewalls make decisions using the envelope layers already covered:
+
+```
+Layer 7   the text      (sometimes) — "block requests whose path looks like an attack"
+Layer 4   the port      (usually)   — "allow port 443, drop the rest"
+Layer 3   the address   (usually)   — "allow from this subnet only"
+```
+
+A firewall is essentially a reader of those lines with a rulebook.
+
+---
+
+## What a firewall is
+
+> A checkpoint that inspects each envelope against a list of rules and decides: **allow** or **drop**.
+
+It sits on the path, reads the parts of the envelope it cares about, checks its rulebook, and either lets the envelope through or discards it. The name is borrowed from the physical wall that stops fire spreading between rooms — a barrier that contains danger. Same intent: contain what is allowed to reach a machine.
+
+---
+
+## What a rule looks like
+
+A firewall rule reads off the layers directly. A rulebook protecting the project's database machine:
+
+```
+ALLOW   from 10.0.1.0/24   to port 5432   (the app subnet may reach PostgreSQL)
+ALLOW   from anywhere       to port 443    (the whole world may reach HTTPS)
+DROP    everything else
+```
+
+Each line is layers already known:
+
+- `from 10.0.1.0/24` — a **Layer 3** check (the address line), in CIDR from Lesson 08.
+- `to port 5432` — a **Layer 4** check (the port line) from Lesson 02.
+- `ALLOW` / `DROP` — the verdict.
+
+---
+
+## Default deny — the safe stance
+
+That last line — `DROP everything else` — is the most important line in any firewall, and it has a name: the **default deny**. The rulebook lists what is permitted; anything not matching a permit is dropped.
+
+This is the opposite of "allow everything except a blocklist," and it is the safe one: you cannot forget to block a threat you never thought of, because *everything* is blocked unless explicitly allowed. Configuring security groups in AWS (Part 2) is exactly this model — list what is allowed, and the unlisted is refused.
+
+---
+
+## Drop, not reject — a deliberate silence
+
+The word is **drop**, not "refuse." The distinction matters:
+
+- **Reject**: the firewall sends back "no, go away." The sender learns something is there, refusing them.
+- **Drop**: the firewall says *nothing*. The envelope vanishes into silence. The sender waits, times out, and never learns whether a machine is even there.
+
+Firewalls usually **drop**, and the reason connects to the man-in-the-middle threat model. Attackers probe: someone scanning the internet sends envelopes to millions of addresses asking "anyone home?" A *reject* answers "yes, something's here, but closed" — useful intelligence for mapping targets. A *drop* answers nothing, and silence is the most useless reply to a scanner. Deliberate silence is a defense: don't just refuse the probe, refuse to *exist* to it.
+
+---
+
+## NAT's accident vs the firewall's intent
+
+People conflate these constantly. Side by side:
+
+```
+NAT       drops unsolicited inbound traffic as a SIDE EFFECT of having no
+          table entry. It was never trying to protect anything.
+
+Firewall  drops traffic ON PURPOSE, by a rulebook you wrote, precisely
+          describing what may pass.
+```
+
+A NAT accidentally shields; a firewall deliberately guards. Real deployments use both. Understanding they are different is why "it's behind NAT" must never be mistaken for "it's protected" — the Lesson 09 warning, sharpened.
+
+---
+
+## The debt: why low ports are protected
+
+The ports lesson raised this and deferred it: why do ports 0–1023 need admin permission? The answer needed servers, the TLS handshake, and the man-in-the-middle mindset — all now in hand.
+
+Consider a shared machine — one computer many people log into (a company server, a university box). Port 443 is where every browser expects the HTTPS waiter. Recall from the TLS lesson what a browser does connecting to 443: it begins a handshake, and the program holding 443 gets to present a certificate and receive whatever the user sends — potentially a password in a POST body, before the user notices anything wrong.
+
+Now imagine any ordinary user on that shared machine could claim port 443. They start a program there that presents *some* certificate and captures whatever arrives. Users connecting would be handing sensitive data to whoever grabbed the port. The one thing preventing this is the low-port rule: **claiming 443 requires admin permission**, so an ordinary user simply cannot put a program there. Only an administrator can occupy the ports browsers trust by default — and an administrator already controls the machine, so the rule gives up no security by allowing them.
+
+The answer needed everything since: servers (Lesson 01's "computer with no screen"), waiters holding ports (Lesson 02), the TLS handshake and certificates (Lesson 12), and the man-in-the-middle mindset (Lesson 11) to see why intercepting 443 is worth an attacker's effort. The debt is paid, and it paid interest — the answer is richer now than it could have been then.
+
+---
+
+## Questions raised in this lesson
+
+### Which "admin" does this mean?
+
+The **administrator of that one machine** — the account with full control over that specific computer. On Linux it is literally called **root**; on Windows, "Administrator." Not a company IT department in the abstract, not a cloud login — the top-level user account *on the machine itself*.
+
+Two clarifications:
+
+- **It is per-machine, not a global rank.** Being admin on a laptop grants nothing on GitHub's servers. Each machine has its own root account. "An ordinary user on a shared machine" means someone with a normal login on that box — able to run programs and save files in their own space, but *not* root. The low-port rule is the fence between them: normal users claim ports 1024+; only root claims 0–1023.
+- **On a personal Mac, the owner is effectively both.** Installing something and being asked for a password is the owner temporarily acting as admin. Which leads to the next question.
+
+### How does admin access actually let a program claim the port?
+
+Not by magic — by a chain of who-owns-what.
+
+**Claiming a port is a request to the operating system.** From the ports lesson, "listening on 8080" means a program asked the OS *"give me anything arriving for 8080,"* and the OS agreed. The OS owns all the ports and hands them out. A program cannot take a port; it must ask, and the OS decides.
+
+**The OS has a rule for low ports.** When a program asks for a port 0–1023, the OS checks: is the asker running with admin authority? Yes → granted. No → denied (the `EACCES` error from the ports lesson).
+
+**A running program runs *as* a user.** Every program carries an identity — it runs as whoever launched it, inheriting their authority. Launch a program as an admin, and it asks the OS with admin authority:
+
+```
+admin launches program → program runs AS admin → asks OS for 443
+   → OS checks: admin? YES → granted
+
+ordinary user launches same program → runs AS normal user → asks for 443
+   → OS checks: admin? NO → DENIED
+```
+
+Same program, same machine, same port — different launcher, different authority, different answer.
+
+**`sudo` exists because rights can be available but not active.** A Mac owner usually operates with normal authority even while holding admin rights (a safety default). `sudo` means "run this next thing with admin authority switched on":
+
+```
+npm start          → runs as normal-you → asks for 443 → DENIED
+sudo npm start     → runs as admin-you  → asks for 443 → granted
+```
+
+The port rule never changed; what changed is the authority the program carried when it asked. So the precise statement is: **the OS guards low ports; a program asks the OS with whatever authority its launcher gave it; only admin authority passes.**
+
+### What about localhost:443? React usually runs on 3000-ish anyway.
+
+**The port rule ignores `localhost`.** It cares only about the number. `localhost:443` is still port 443, still low, still needs admin. `localhost` changes *who can reach* the program (only this machine — that is what localhost means) but not the claiming rule.
+
+```
+React on localhost:3000   → high port → any user claims it → just works
+React on localhost:443    → low port  → needs admin → sudo, or EACCES
+```
+
+A correction to the frameworks, worth keeping the map clean: React's dev server defaults to **3000**; **8080** is the Java Spring Boot backend's default, not a React one. What they share is the point — every default dev port is above 1023, and that is not coincidence. Dev tools deliberately default to high ports so they start without admin; a framework defaulting to 443 would demand `sudo` on every launch. React picked 3000, Spring Boot 8080 — all high, all admin-free.
+
+The real-world consequence: **you almost never run anything on 443 in development.** React on 3000, Java on 8080, both over plain HTTP on localhost, no certificates, no admin. Port 443 and its TLS handshake enter only at *deployment* — and there, something purpose-built sits on 443 in front of the app (the reverse proxy, Part 5) rather than the app claiming it directly. The low-port rule barely touches daily local work; it becomes relevant exactly once, at deployment, by which point the architecture is designed around it.
+
+---
+
+## Where firewalls sit in real work
+
+Three places, all the same idea at different scales:
+
+- **On the machine itself** — a rulebook running on each computer, guarding its own ports. (Linux calls the machinery `iptables` / `nftables`; names filed.)
+- **In the cloud, as a service** — AWS **security groups** are firewalls around each machine; **NACLs** are firewalls around whole subnets. Both are Part 2, both are the ALLOW/DROP rulebook above.
+- **At Layer 7** — smarter firewalls that read the *text*, not just address and port: "block requests whose path looks like an attack." These overlap with the proxies of Part 5.
+
+Every one is the checkpoint definition. Once "inspect envelope, check rulebook, allow or drop" is clear, firewalls become just *where* the checkpoint sits and *which layers* its rules read.
+
+---
+
+## Easy to get wrong
+
+**Default deny vs default allow is the whole security posture.** A firewall that allows everything except a blocklist will always miss something. Listing what is permitted and dropping the rest is why cloud security groups are built the way they are.
+
+**Drop and reject are different on purpose.** Drop is silent; reject talks back. Silence is chosen to give scanners nothing — including no confirmation the machine exists.
+
+**NAT is not a firewall.** NAT's shielding is a side effect with no rulebook; a firewall is deliberate with a rulebook. Relying on NAT as protection is a classic mistake.
+
+**A firewall protects along the path where it sits.** A machine firewall guards that machine; a subnet firewall guards that subnet. Placement determines what is actually protected — a rule in the wrong place protects nothing.
+
+**The low-port rule is about the *launcher's* authority, not the program.** The same binary is allowed or denied port 443 depending on who ran it. This is why `sudo` flips the outcome.
+
+**`localhost` grants no port exemption.** Local-only reachability and port-claiming permission are unrelated. A low port is a low port even when nobody outside can reach it.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| Firewall | A mysterious security box | A checkpoint reading Layers 3/4/7 against a rulebook, deciding allow or drop |
+| A firewall rule | Arbitrary config | Plain layer checks: this address (L3), this port (L4), this verdict |
+| Blocking stance | Block the bad stuff | Default deny: allow a listed few, drop everything else |
+| Drop vs reject | The same thing | Drop is deliberate silence — the safest reply to a scanner |
+| NAT and firewalls | Both "protect" you | NAT shields by accident; a firewall guards on purpose — never equate them |
+| Why low ports need admin | An arbitrary restriction | Prevents ordinary users on shared machines from hijacking the ports browsers trust (like 443) |
+| Claiming a port | The program just takes it | The program asks the OS, carrying its launcher's authority; the OS decides |
+| Dev ports (3000, 8080) | Random numbers | Deliberately high so tools start without admin |
+
+---
+
+## Terms locked in
+
+- **firewall** — a checkpoint that inspects envelopes against a rulebook and allows or drops them
+- **rule** — one line: address and/or port conditions plus a verdict
+- **default deny** — drop anything not explicitly allowed; the safe posture
+- **drop** — discard silently, telling the sender nothing
+- **reject** — refuse audibly, confirming something is there
+- **root / administrator** — the top-level account on one machine; the authority needed for low ports
+- **`sudo`** — run a program with admin authority switched on
+- **security group** — AWS's per-machine firewall (Part 2)
+- **NACL** — AWS's per-subnet firewall (Part 2)
+
+---
+
+## Deliberately not covered yet
+
+- **iptables / nftables mechanics** — the Linux machinery; names filed, hands-on deferred
+- **Security groups vs NACLs in detail** — Part 2, where they are configured for the project
+- **Stateful firewalls** — how a firewall (like NAT) remembers connections so replies are allowed automatically; introduced with security groups, where it matters
+- **Layer 7 / web application firewalls** — path- and content-aware filtering; overlaps Part 5 proxies
+- **Running programs as non-root on purpose** — container security; Parts 3 and 4, built directly on the launcher-authority idea here
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| The privileged-port (0–1023) convention | IANA port registry + Unix tradition | https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml |
+| Firewall concepts and default-deny | NIST SP 800-41 (Guidelines on Firewalls) | https://csrc.nist.gov/pubs/sp/800/41/r1/final |
+| AWS security groups and NACLs (the cloud form) | AWS VPC security documentation | https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security.html |
+| Readable overview | Cloudflare Learning — What is a firewall? | https://www.cloudflare.com/learning/security/what-is-a-firewall/ |
+
+> **Source note:** the 0–1023 "privileged ports" rule is a long-standing Unix convention rather than an internet standard — it lives in operating-system behaviour, documented in system manuals, not in an RFC. NIST SP 800-41 is a solid vendor-neutral reference for firewall design principles.
+
+---
+
+*End of Lesson 13. Next: troubleshooting tools — the commands that let you watch every mechanism from Lessons 01–13 actually happen.*
