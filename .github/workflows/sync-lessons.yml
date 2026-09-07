@@ -57,8 +57,14 @@ jobs:
       - run: npm ci
 
       # Validation failures exit non-zero here — no PR is created.
+      # `shell: bash` is required: it runs with `-o pipefail`, so the
+      # converter's exit code survives the pipe into `tee`. Without it the
+      # step's status is tee's (always 0) and a failed sync reports green.
       - name: Sync (deterministic, verbatim, no AI)
-        run: node scripts/sync-content.mjs --lab lab --source-commit "${{ steps.src.outputs.sha }}" | tee sync-report.txt
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/sync-content.mjs --lab lab --source-commit "${{ steps.src.outputs.sha }}" | tee sync-report.txt
 
       - name: Compose pull request body
         run: |
