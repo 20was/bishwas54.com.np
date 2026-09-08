@@ -1,0 +1,203 @@
+---
+title: AWS Lesson 03 — Public vs Private Subnets
+description: 'The three project pieces have opposite reachability needs:'
+datePublished: 2026-09-08
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking — AWS
+  order: 3
+sourceId: net-aws-03
+sourcePath: networking-lab/02-aws/03-public-vs-private-subnets.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 2 — AWS Networking
+> **Status:** Understood and closed
+> **Concepts covered:** 1 — what makes a subnet public or private (it is routing, not the subnet itself)
+> **Builds on:** AWS Lesson 02 (subnets), Foundations Lesson 07 (routing, the default route), Lesson 09 (databases must not be exposed)
+
+---
+
+## Table of contents
+
+1. [The project's opposite needs](#the-projects-opposite-needs)
+2. [The definitions](#the-definitions)
+3. [What actually makes a subnet public or private](#what-actually-makes-a-subnet-public-or-private)
+4. [The local route — how private things still talk](#the-local-route--how-private-things-still-talk)
+5. [Questions raised in this lesson](#questions-raised-in-this-lesson)
+6. [Easy to get wrong](#easy-to-get-wrong)
+7. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+8. [Terms locked in](#terms-locked-in)
+9. [Deliberately not covered yet](#deliberately-not-covered-yet)
+10. [Sources](#sources)
+
+---
+
+## The project's opposite needs
+
+The three project pieces have opposite reachability needs:
+
+```
+React frontend    — the whole world must reach this (users open it in a browser)
+Java backend      — only the frontend should reach this
+PostgreSQL        — only the backend should reach this; the world must NEVER reach it
+```
+
+The frontend wants to be wide open to the internet. The database wants to be sealed away from it completely (Foundations Lesson 09, and the real `ss` capture showing PostgreSQL safely on `127.0.0.1`). You cannot give opposite treatment to things in the same undifferentiated space, so you split them by exposure.
+
+---
+
+## The definitions
+
+> **A public subnet is one whose machines CAN be reached from the internet.**
+> **A private subnet is one whose machines CANNOT be reached from the internet.**
+
+Placing the project accordingly:
+
+```
+PUBLIC subnet   (10.0.1.0/24)   →  React frontend       (reachable from internet)
+PRIVATE subnet  (10.0.2.0/24)   →  Java backend         (hidden)
+PRIVATE subnet  (10.0.3.0/24)   →  PostgreSQL           (hidden)
+```
+
+Same VPC, different streets, opposite exposure.
+
+---
+
+## What actually makes a subnet public or private
+
+The surprise: **there is no checkbox labeled "public."** Nothing about the subnet itself is inherently open or closed. A subnet is public or private purely because of **how its traffic is routed** — specifically, whether it has a path to the internet.
+
+"A path to the internet" is a routing decision (Foundations Lesson 07). The default route `0.0.0.0/0` — "everything else, send it this way" — is the entire mechanism:
+
+```
+PUBLIC subnet's routing:   0.0.0.0/0  →  the internet door
+PRIVATE subnet's routing:  (no route to the internet door at all)
+```
+
+A public subnet has a route-table line pointing internet-bound traffic at a door to the outside. A private subnet simply *does not have that line* — so traffic with nowhere-to-the-internet-to-go cannot get out or in.
+
+> The private subnet is not blocked by a wall. It is private because **no road was ever built to the outside.**
+
+This echoes Foundations Lesson 01: private addresses are not blocked, they are just unroutable. Same idea — absence of a path, not presence of a barrier.
+
+So "public subnet" means "a subnet whose route table has a path to the internet," and "private" means "a subnet whose route table does not." The difference is entirely in the routing — which is why the next two lessons build the pieces that make it real: **route tables** (where you write these lines) and the **internet gateway** (the door those lines point at).
+
+---
+
+## The local route — how private things still talk
+
+"No route" was imprecise. Precisely:
+
+> A private subnet has **no route to the internet.** It absolutely still has routes to reach *inside the VPC.*
+
+Every subnet — public or private — is born with one route it can never lose, the **local route**, created automatically when the VPC exists:
+
+```
+local route:   10.0.0.0/16  →  local  (stay inside the VPC)
+```
+
+Read with Lesson 07 eyes: "any address in `10.0.0.0/16` — my own VPC's range — is reachable directly, internally." Since all subnets are carved from `10.0.0.0/16`, this one line means **every subnet can reach every other subnet, always, automatically** — frontend to backend, backend to database, private to private.
+
+The two route tables side by side:
+
+```
+PRIVATE subnet's route table:
+   10.0.0.0/16   ->  local              <- reach anything inside the VPC (always)
+   (no 0.0.0.0/0 line)                  <- no road to the internet
+
+PUBLIC subnet's route table:
+   10.0.0.0/16   ->  local              <- same internal road (everyone has this)
+   0.0.0.0/0     ->  the internet door  <- PLUS a road to the outside
+```
+
+The **only** difference between public and private is that one extra `0.0.0.0/0` line. The internal `local` road is identical in both. "Private" never meant "isolated from everything" — it meant "isolated from *the internet* specifically," while staying fully connected inside.
+
+The project's flow uses exactly this:
+
+```
+internet -> [PUBLIC] React -> [PRIVATE] Java -> [PRIVATE] PostgreSQL
+              ^ only this hop uses the internet road
+                      ^ everything after here rides the local route, internally
+```
+
+The world reaches only the front door (public subnet). Everything behind it communicates internally over the local route, never touching the internet — the security design from Lesson 09, built out of route-table lines.
+
+---
+
+## Questions raised in this lesson
+
+### If a private subnet is private, how do we reach it from the public subnet, or from one private subnet to another?
+
+Via the **local route**, which every subnet has automatically. "Private" means "no route to the internet," not "no routes at all."
+
+- **Public → private** (frontend reaching backend): the request to `10.0.2.20` matches `10.0.0.0/16 → local`, delivered internally. No internet involved.
+- **Private → private** (backend reaching database): `10.0.3.30` matches `10.0.0.0/16 → local`, delivered. Two private subnets talk freely.
+
+So "private" is precisely: **reachable inside the VPC, unreachable from the internet.** Not cut off — just not exposed.
+
+---
+
+## Easy to get wrong
+
+**"Public" and "private" are not subnet settings — they are routing outcomes.** A subnet is public because its route table points `0.0.0.0/0` at an internet door. Remove that line and the same subnet becomes private. There is no inherent property to toggle.
+
+**Private is not isolated.** Private subnets talk freely inside the VPC via the local route. The isolation is only from the internet.
+
+**Absence of a path, not presence of a wall.** Private subnets are unreachable from outside because no route exists, not because something actively blocks. (Firewalls, which *do* actively block, are a separate layer — a later lesson.)
+
+**A public subnet does not force a machine onto the internet.** It only *permits* it. An instance in a public subnet still needs a public IP to actually be reachable; the subnet's route table is necessary but not sufficient.
+
+**The local route cannot be removed.** It is the one guaranteed line. If two subnets in a VPC cannot reach each other, the cause is elsewhere (a firewall rule), never a missing local route.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| Public vs private subnet | A checkbox or subnet type | A routing outcome: does the route table have a path to the internet? |
+| A private subnet | Sealed off from everything | Sealed off from the *internet*; fully connected inside the VPC |
+| Why private is unreachable | A wall blocks it | No road to the outside was ever built (absence, not barrier) |
+| Reaching private machines | Impossible without opening them | Trivial from inside the VPC, via the automatic local route |
+| The public/private difference | Two different kinds of network | One route-table line: `0.0.0.0/0` present or absent |
+
+---
+
+## Terms locked in
+
+- **public subnet** — a subnet whose route table has a path to the internet (`0.0.0.0/0` → internet door)
+- **private subnet** — a subnet whose route table has no path to the internet
+- **local route** — the automatic, unremovable route (`10.0.0.0/16 → local`) letting every subnet reach the whole VPC internally
+- **default route (`0.0.0.0/0`)** — the "everything else" route; its presence and target make a subnet public
+- **internet door** — placeholder name for the internet gateway, the target of a public subnet's default route (Lesson 05)
+
+---
+
+## Deliberately not covered yet
+
+- **Route tables** — where these lines are actually written and attached to subnets; next lesson
+- **Internet gateway** — the real "internet door" a public subnet's route points at; Lesson 05
+- **NAT gateway** — how a *private* subnet can reach out to the internet (for updates) without being reachable *from* it; Lesson 06
+- **Security groups and NACLs** — the active blocking layer, distinct from routing; Lesson 07
+- **Public IP assignment** — the second requirement for actual internet reachability; hands-on build
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| Public vs private subnets (official) | AWS — Subnet types | https://docs.aws.amazon.com/vpc/latest/userguide/configure-subnets.html#subnet-types |
+| Route tables and the local route | AWS — Route tables | https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html |
+| Example public/private VPC architecture | AWS — VPC with public and private subnets | https://docs.aws.amazon.com/vpc/latest/userguide/vpc-example-private-subnets-nat.html |
+
+> **Source note:** AWS's own docs define a public subnet exactly as taught here — a subnet whose route table directs internet-bound traffic to an internet gateway. The "public/private" labels are conveniences for a routing configuration, not a subnet attribute.
+
+---
+
+*End of AWS Lesson 03. Next: route tables — where these routing lines are actually written.*

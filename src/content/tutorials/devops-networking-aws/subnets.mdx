@@ -1,0 +1,191 @@
+---
+title: AWS Lesson 02 — Subnets
+description: The VPC claimed 10.0.0.0/16 — about 65,000 private addresses, one big undivided plot.
+datePublished: 2026-09-08
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking — AWS
+  order: 2
+sourceId: net-aws-02
+sourcePath: networking-lab/02-aws/02-subnets.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 2 — AWS Networking
+> **Status:** Understood and closed
+> **Concepts covered:** 2 — slicing the VPC into subnets, and Availability Zones (with the cost trade-off)
+> **Builds on:** AWS Lesson 01 (the VPC and its CIDR block), Foundations Lesson 08 (CIDR), Lesson 09 (databases should not be exposed)
+
+---
+
+## Table of contents
+
+1. [From one big plot to streets](#from-one-big-plot-to-streets)
+2. [Why slice it at all](#why-slice-it-at-all)
+3. [Availability Zones — the physical half](#availability-zones--the-physical-half)
+4. [Questions raised in this lesson](#questions-raised-in-this-lesson)
+5. [Easy to get wrong](#easy-to-get-wrong)
+6. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+7. [Terms locked in](#terms-locked-in)
+8. [Deliberately not covered yet](#deliberately-not-covered-yet)
+9. [Sources](#sources)
+
+---
+
+## From one big plot to streets
+
+The VPC claimed `10.0.0.0/16` — about 65,000 private addresses, one big undivided plot. You do not leave it undivided. You carve it into **subnets**.
+
+From Foundations Lesson 08, a subnet is a local-delivery zone — a group of addresses that belong together. In AWS you take the big `/16` and slice it into smaller `/24` pieces:
+
+```
+VPC:  10.0.0.0/16   (the whole plot — 65,000 addresses)
+  │
+  ├── subnet A:  10.0.1.0/24   (256 addresses)
+  ├── subnet B:  10.0.2.0/24   (256 addresses)
+  └── subnet C:  10.0.3.0/24   (256 addresses)
+```
+
+Each subnet is a `/24` carved from the `/16` — CIDR from Lesson 08, now typed into a form. The `/16` is the neighborhood; each `/24` is a street within it.
+
+---
+
+## Why slice it at all
+
+Two reasons — one guessable, one not.
+
+**Reason 1 — separation by job.** Public-facing pieces (the React frontend, reachable from the internet) should be kept apart from protected pieces (the PostgreSQL database, which nothing outside should touch). Different subnets let you apply different rules to each — "this street is open to visitors, that street is residents-only." This is the basis of public vs private subnets, the next lesson.
+
+**Reason 2 — physical location.** A cloud region is not one building — it is several separate buildings, kilometers apart, each with its own power and network. These are **Availability Zones (AZs)**, and the rule is that each subnet lives entirely inside one AZ.
+
+---
+
+## Availability Zones — the physical half
+
+> **Each subnet lives entirely inside one Availability Zone — one building cluster.**
+
+So creating a subnet also means choosing *which physical building* it sits in:
+
+```
+subnet A:  10.0.1.0/24   in Availability Zone 1  (building cluster 1)
+subnet B:  10.0.2.0/24   in Availability Zone 2  (building cluster 2)
+```
+
+Why care? Buildings fail — power outage, flood, fire — and a whole AZ can go down. If the entire app lived in one subnet in one building, that failure takes you fully offline. Spread across subnets in *different* AZs, and one building dying leaves the others still serving users.
+
+So a subnet does double duty: a **logical** division (separate by job, apply different rules) *and* a **physical** division (which building, for survival). One concept, two purposes.
+
+---
+
+## Questions raised in this lesson
+
+### Do we choose how many AZs, or does AWS?
+
+**You choose** — AWS provides the ingredients. A region comes with a fixed set of AZs Amazon already built (Sydney has 3, for example). You cannot create or remove AZs. What you decide is how many of them to spread subnets across:
+
+```
+Sydney region (AWS built these 3 AZs):   AZ-1   AZ-2   AZ-3
+
+   Minimal:  subnet in AZ-1 only              (one building)
+   Better:   subnet in AZ-1 + subnet in AZ-2  (two buildings)
+   Fuller:   subnets in AZ-1, AZ-2, AZ-3      (three)
+```
+
+A subnet forces you to pick one AZ when created, so "using more AZs" simply means "creating subnets in more of them."
+
+### Is more AZs always better?
+
+More AZs = more resilience, but the gain drops off fast:
+
+- **1 → 2 AZs: huge.** From "one outage kills me" to "survives a full data-center failure." The jump that matters.
+- **2 → 3 AZs: modest.** Two whole buildings failing at once is already very rare.
+- **Beyond 3: usually pointless** for most apps.
+
+Industry default is **two AZs** for most things, three for critical systems. Not "as many as possible" — that is over-engineering.
+
+### Do we pay extra for more AZs?
+
+Two separate cost questions:
+
+**Do AZs or subnets cost money?** No. Subnets across three AZs cost nothing directly — subnets are free config, like the VPC.
+
+**Does spreading across AZs cost money indirectly?** Yes, two ways:
+
+- **More AZs usually means more computers.** To actually *survive* a building failure you need running EC2 instances in each AZ — an idle empty subnet saves nothing when its neighbor dies. Real resilience means duplicating machines across AZs, and machines cost money (roughly double the compute for two AZs).
+- **Traffic between AZs is charged.** AZs are physically separate buildings, so when the Java backend in AZ-1 talks to PostgreSQL in AZ-2, that data crosses between buildings, and AWS charges a small per-gigabyte cross-AZ transfer fee, each direction. Traffic *within* one AZ is free; *between* AZs costs.
+
+The honest trade-off:
+
+```
+one AZ:      cheapest, no cross-AZ fees, but one building failure = total outage
+two AZs:     survives a building failure, but ~2x compute + cross-AZ data fees
+three AZs:   marginally safer, more cost, rarely worth it for normal apps
+```
+
+More AZs is not simply "better" — it is "more resilient AND more expensive," and you choose where on that line the app belongs. A hobby project: one AZ. A payment system: two or three, cost accepted. That judgment is a core DevOps decision.
+
+---
+
+## Easy to get wrong
+
+**A subnet is bound to exactly one AZ.** You cannot stretch one subnet across two buildings. Spanning AZs means creating multiple subnets, one per AZ.
+
+**Empty multi-AZ subnets give no resilience.** Survival requires actual running instances in each AZ. An empty subnet in a second building does nothing when the first fails.
+
+**Cross-AZ traffic is a real, recurring bill.** A chatty app spread across AZs pays per-gigabyte transfer fees continuously. Placement affects cost, not just resilience.
+
+**More AZs is not linearly better.** The 1→2 jump is enormous; 2→3 is small; beyond 3 is usually waste. Two is the common sweet spot.
+
+**AZ names are per-account.** "AZ-1" in one AWS account may be a different physical building than "AZ-1" in another — Amazon shuffles the labels to balance load. It rarely matters day to day, but it is why two accounts' "same AZ" may not be the same place.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| A subnet | Just a smaller network | A slice of the VPC range that also lives in one physical building |
+| Availability Zone | A vague cloud term | A separate data-center building cluster; the unit of physical failure |
+| How many AZs | More is always better | 1→2 is the big win; 2 is the usual sweet spot; more costs more for little gain |
+| Cost of resilience | The AZs cost money | The AZs are free; the duplicated machines and cross-AZ traffic cost money |
+| Subnet purpose | One thing | Two: logical (separate by job) and physical (survive a building failure) |
+
+---
+
+## Terms locked in
+
+- **subnet (in AWS)** — a slice of the VPC's CIDR range, bound to exactly one Availability Zone
+- **Availability Zone (AZ)** — a separate data-center building cluster within a region; the unit of physical failure
+- **region** — a geographic area containing a fixed set of AZs (e.g. Sydney with 3)
+- **cross-AZ data transfer** — traffic between AZs, which AWS charges per gigabyte
+- **multi-AZ** — spreading resources across AZs for resilience, at extra cost
+
+---
+
+## Deliberately not covered yet
+
+- **Public vs private subnets** — the logical split (reason 1) made real; next lesson
+- **Route tables** — how a subnet's traffic is actually directed; Lesson 04
+- **Regions in depth** — choosing a region, latency, data residency; touched when it matters
+- **Subnet sizing math** (why AWS reserves 5 addresses per subnet) — a practical detail deferred to the hands-on build
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| Subnets in a VPC (official) | AWS — Subnets for your VPC | https://docs.aws.amazon.com/vpc/latest/userguide/configure-subnets.html |
+| Availability Zones and regions | AWS — Regions and Zones | https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html |
+| Cross-AZ data transfer pricing | AWS — EC2 On-Demand pricing (data transfer) | https://aws.amazon.com/ec2/pricing/on-demand/ |
+| Resilience / multi-AZ design | AWS Well-Architected — Reliability Pillar | https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html |
+
+> **Source note:** cross-AZ transfer pricing changes over time and by region — check the live pricing page rather than memorising a figure. As of 2026 it is a small per-GB charge in each direction.
+
+---
+
+*End of AWS Lesson 02. Next: public vs private subnets — what actually makes a subnet reachable from the internet.*
