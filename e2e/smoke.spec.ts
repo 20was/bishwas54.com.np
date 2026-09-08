@@ -7,8 +7,12 @@ test('home shows the series card and navigates through it to a lesson', async ({
   await expect(page).toHaveTitle(/Bishwas Adhikari/);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-  await page.getByRole('link', { name: 'DevOps Networking' }).first().click();
-  await expect(page).toHaveURL(/\/tutorials\/devops-networking\//);
+  // Exact match: sibling series are named "DevOps Networking — <track>",
+  // and a substring match would click whichever one sorts first.
+  await page
+    .getByRole('link', { name: 'DevOps Networking', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/tutorials\/devops-networking\/$/);
 
   await page
     .getByRole('link', { name: /Lesson 01/ })
