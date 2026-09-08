@@ -1,0 +1,160 @@
+---
+title: AWS Lesson 04 — Route Tables
+description: 'From Foundations Lesson 07, a routing table is a list of rules, each "addresses like this → that exit." An AWS route table is exactly that, as something you edit in a form:'
+datePublished: 2026-09-08
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking — AWS
+  order: 4
+sourceId: net-aws-04
+sourcePath: networking-lab/02-aws/04-route-tables.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 2 — AWS Networking
+> **Status:** Understood and closed (theory + hands-on)
+> **Concepts covered:** 2 — route tables as the thing that decides public/private, and the main-vs-custom table distinction
+> **Builds on:** Foundations Lesson 07 (routing, the default route, "more specific wins"), AWS Lesson 03 (public vs private is a routing outcome)
+
+---
+
+## Table of contents
+
+1. [What a route table is, in AWS](#what-a-route-table-is-in-aws)
+2. [The main route table, and why you leave it alone](#the-main-route-table-and-why-you-leave-it-alone)
+3. [Custom tables and association](#custom-tables-and-association)
+4. [Hands-on: what we did in the console](#hands-on-what-we-did-in-the-console)
+5. [Easy to get wrong](#easy-to-get-wrong)
+6. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+7. [Terms locked in](#terms-locked-in)
+8. [Deliberately not covered yet](#deliberately-not-covered-yet)
+9. [Sources](#sources)
+
+---
+
+## What a route table is, in AWS
+
+From Foundations Lesson 07, a routing table is a list of rules, each "addresses like this → that exit." An AWS route table is exactly that, as something you edit in a form:
+
+```
+Destination      Target
+10.0.0.0/16      local              ← reach inside the VPC
+0.0.0.0/0        igw-xxxx           ← everything else → the internet gateway
+```
+
+Each line is a **destination** (a CIDR range, Lesson 08) and a **target** (where matching traffic goes). When traffic leaves an instance, AWS checks it against the route table of the instance's subnet, matches the most specific destination (Lesson 07's "more specific wins"), and sends it to that target.
+
+A route table belongs to a VPC and is **associated** with subnets. The association is the crucial part: a subnet behaves according to *whichever table it is associated with*.
+
+---
+
+## The main route table, and why you leave it alone
+
+Every VPC is born with one route table, the **main route table**, carrying just the local route. It is the VPC's default: **any subnet not explicitly associated with a custom table falls back to the main table.**
+
+This single fact drives the whole design. Because main is the fallback for everything, you keep it **private** — local route only, no internet route. If you added `0.0.0.0/0 → internet` to main, every subnet in the VPC (present and future) would silently gain internet access, including a database subnet. So:
+
+> **Leave the main route table local-only. Grant internet access by associating specific subnets with a separate custom table that has the internet route.**
+
+Internet access becomes something a subnet *opts into*, never a default — the safe-default posture (compare firewall default-deny, Foundations Lesson 13).
+
+---
+
+## Custom tables and association
+
+To make a subnet public, you:
+
+1. Create a **custom route table** in the VPC.
+2. Add the internet route to it (`0.0.0.0/0 → internet gateway`).
+3. **Associate** the public subnet with this custom table.
+
+The private subnets are simply left on main. The difference between a public and private subnet reduces entirely to **which table each is associated with** — a public subnet points at a table with an internet route, a private subnet points at (or falls back to) a table without one.
+
+---
+
+## Hands-on: what we did in the console
+
+Built on `learn-vpc` (Sydney).
+
+**Created a custom table:** Route tables → Create route table → name `learn-public-rt`, VPC `learn-vpc`. Result: `rtb-0f0d1e654fc79997f`, born with only the `local` route, associated with no subnets.
+
+**Added the internet road:** on `learn-public-rt`, Routes → Edit routes → Add route → destination `0.0.0.0/0`, target Internet Gateway → `learn-igw` (`igw-02e333fe0c532664b`) → Save. The table now read:
+
+```
+10.0.0.0/16   local              (the built-in local route)
+0.0.0.0/0     igw-02e333fe...    (the internet road — written by hand)
+```
+
+**Associated the public subnet:** Subnet associations → Edit → ticked `learn-public-a` only → Save.
+
+**Verified the contrast** by reading each subnet's Route table tab:
+
+```
+learn-public-a  → learn-public-rt (rtb-0f0d1e...) : local + 0.0.0.0/0→igw   = PUBLIC
+learn-private-a → main table      (rtb-015ec...)  : local only              = PRIVATE
+```
+
+Two subnets made different purely by association — the definition of "public vs private," built by hand.
+
+---
+
+## Easy to get wrong
+
+**A subnet's behaviour comes from its associated table, not from the subnet.** Change the association and the subnet's public/private nature changes instantly. The subnet itself holds no routing.
+
+**The main table is a landmine if you add an internet route to it.** Every unassociated subnet inherits it. Always grant internet via a custom table, never by editing main.
+
+**"More specific wins" applies here too.** When both `10.0.0.0/16 → local` and `0.0.0.0/0 → igw` could match, the more specific `/16` wins for VPC-internal traffic — which is why internal traffic never accidentally goes out the internet gateway. (Foundations Lesson 07.)
+
+**Deleting the internet route re-privates a subnet instantly.** Remove `0.0.0.0/0 → igw` from `learn-public-rt` and `learn-public-a` becomes private again — the gateway still exists, but nothing points at it.
+
+**A route needs a valid target.** You cannot save `0.0.0.0/0` pointing at nothing. The route line is only half; the target (a real device like an IGW) is the other half.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| Route table | An obscure config screen | The list of "destination → target" rules that decides where a subnet's traffic goes |
+| Main route table | Just the first table | The VPC default that every unassociated subnet inherits — keep it private |
+| Making a subnet public | A setting on the subnet | Associating it with a custom table that has an internet route |
+| Public vs private | Two subnet types | Two route-table associations; one line of difference |
+| A route line | A complete instruction | Half an instruction — needs a valid target device to mean anything |
+
+---
+
+## Terms locked in
+
+- **route table (AWS)** — a list of destination→target rules; governs a subnet's traffic
+- **main route table** — the VPC's default table; the fallback for any unassociated subnet
+- **custom route table** — a table you create and associate with specific subnets
+- **association** — the link between a subnet and the route table it obeys
+- **target** — where matching traffic is sent (local, an internet gateway, a NAT gateway, etc.)
+
+---
+
+## Deliberately not covered yet
+
+- **Internet gateway** — the target of the public route, covered in its own note (05)
+- **NAT gateway** — a target that lets private subnets reach out without being reachable in; Lesson 06
+- **Route priority beyond "more specific wins"** — edge cases with overlapping routes; deferred until needed
+- **Gateway route tables / edge associations** — advanced routing at the VPC edge; out of scope for now
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| Route tables (official) | AWS — Route tables for your VPC | https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html |
+| Main vs custom route tables | AWS — Route table concepts | https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html#RouteTables |
+| Route priority ("most specific wins") | AWS — Route priority | https://docs.aws.amazon.com/vpc/latest/userguide/route-table-options.html |
+
+---
+
+*End of AWS Lesson 04. Next: the internet gateway — the door the public route points at.*

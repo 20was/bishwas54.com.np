@@ -12,6 +12,7 @@ series:
 sourceId: net-aws-01
 sourcePath: networking-lab/02-aws/01-vpc.md
 aiAssisted: true
+dateUpdated: 2026-09-08
 ---
 
 > **Track:** DevOps Networking — 1 Month Deep Dive
@@ -153,6 +154,28 @@ For private addresses: Amazon does not give them — you pick a CIDR block from 
 The **mapping service** records the VPC and its CIDR as an isolated entry in a distributed source-of-truth; **encapsulation** (VPC-tagged envelopes) enforces the isolation on every packet; **Hyperplane** and **Blackfoot** handle NAT and edge connectivity. The exact code and deepest layers are proprietary and unpublished — the honest ceiling is: named systems, known technique (encapsulation), undisclosed internals.
 
 An elegant consequence, explainable with Foundations Lesson 06: a VPC does not support broadcast, multicast, or packet sniffing — because there is no shared physical wire. Every packet is individually wrapped and delivered point-to-point through the mapping service, so there is no shared medium to broadcast across or eavesdrop on. The isolation is structural, not just a rule.
+
+---
+
+## Hands-on: what we did in the console
+
+Theory verified live in the AWS console (Sydney region, `ap-southeast-2`).
+
+**Created the VPC:**
+- VPC dashboard → Create VPC → **VPC only** (not "VPC and more" — that auto-creates subnets and gateways and hides the individual steps).
+- Name `learn-vpc`, IPv4 CIDR `10.0.0.0/16`, no IPv6, tenancy Default.
+- Result: `vpc-0fffdc60e09ba5a10`, state Available, instantly and free.
+
+**The theory made real — the auto-created route table.** The moment the VPC existed, AWS created a **main route table** (`rtb-015ecbcbe3d743134`, "Main: Yes") containing exactly one route:
+
+```
+Destination      Target    Route Origin
+10.0.0.0/16      local     Create Route Table
+```
+
+That single line is the **local route** — born automatically, never written by hand, unremovable. Its "Route Origin: Create Route Table" is AWS stating it made the route itself. There was **no `0.0.0.0/0` line** — meaning the brand-new VPC had no path to the internet at all. Everything in it could talk internally; nothing could reach out or be reached.
+
+**A region-scoping lesson learned the hard way.** The account already held unrelated VPCs (`platform-dev`, `primary-platform-vpc`) — but only visible in the N. Virginia region. Switching the console to Sydney showed a clean slate. Resources exist in **one region only**; the same account shows completely different resources per region. This is why one region must be chosen and kept — mixing regions is how people lose track of resources or delete the wrong one. (Also: a VPC's delete button is greyed out while it still contains subnets/gateways/instances — AWS will not delete a VPC out from under its contents.)
 
 ---
 

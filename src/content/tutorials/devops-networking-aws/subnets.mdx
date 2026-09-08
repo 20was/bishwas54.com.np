@@ -12,6 +12,7 @@ series:
 sourceId: net-aws-02
 sourcePath: networking-lab/02-aws/02-subnets.md
 aiAssisted: true
+dateUpdated: 2026-09-08
 ---
 
 > **Track:** DevOps Networking — 1 Month Deep Dive
@@ -127,6 +128,25 @@ three AZs:   marginally safer, more cost, rarely worth it for normal apps
 ```
 
 More AZs is not simply "better" — it is "more resilient AND more expensive," and you choose where on that line the app belongs. A hobby project: one AZ. A payment system: two or three, cost accepted. That judgment is a core DevOps decision.
+
+---
+
+## Hands-on: what we did in the console
+
+Two subnets created inside `learn-vpc` (Sydney), both in AZ `ap-southeast-2a`:
+
+```
+learn-public-a    subnet-0b6d9b0cb4c72d18a    10.0.1.0/24    Available
+learn-private-a   subnet-00cfef302916fdda4    10.0.2.0/24    Available
+```
+
+Three things the screen proved:
+
+**1. Identical at birth.** The subnet list showed no "public/private" column, no marking of any kind distinguishing them — only name and CIDR differed. The names are labels *chosen by us*; AWS treats both subnets identically. Nothing intrinsic makes one public and one private (the whole point of the next lesson).
+
+**2. Available IPv4 addresses: 251, not 256.** A `/24` is 256 addresses, but AWS reserves **5 addresses in every subnet** (the first four and the last one) for its own internal use — network address, its internal router, DNS, a reserved slot, and broadcast. Every subnet ever created loses exactly 5. Seen live in the detail panel.
+
+**3. Both subnets used the same main route table.** The `learn-private-a` detail panel showed "Route table: `rtb-015ecbcbe3d743134`" — the same main table from the VPC lesson, with only the `local` route. Both subnets fell back to main, because neither had been given its own table. In public/private terms: **both subnets were private at this point** — neither had a `0.0.0.0/0` line, because both pointed at a table that only had `local`. Making one public was the next step.
 
 ---
 

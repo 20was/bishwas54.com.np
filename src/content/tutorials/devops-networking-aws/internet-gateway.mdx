@@ -1,0 +1,165 @@
+---
+title: AWS Lesson 05 — Internet Gateway
+description: An internet gateway is the door in a VPC's wall to the public internet.
+datePublished: 2026-09-08
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking — AWS
+  order: 5
+sourceId: net-aws-05
+sourcePath: networking-lab/02-aws/05-internet-gateway.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 2 — AWS Networking
+> **Status:** Understood and closed (theory + hands-on)
+> **Concepts covered:** 1 — the internet gateway (the door), and how it differs from the route line that points at it
+> **Builds on:** Foundations Lesson 07 (routing: rule vs exit), Lesson 09 (NAT / public-private translation), AWS Lesson 04 (route tables)
+
+---
+
+## Table of contents
+
+1. [What an internet gateway is](#what-an-internet-gateway-is)
+2. [The route line and the gateway are two different things](#the-route-line-and-the-gateway-are-two-different-things)
+3. [Why the gateway must exist at all](#why-the-gateway-must-exist-at-all)
+4. [Hands-on: what we did in the console](#hands-on-what-we-did-in-the-console)
+5. [Questions raised in this lesson](#questions-raised-in-this-lesson)
+6. [Easy to get wrong](#easy-to-get-wrong)
+7. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+8. [Terms locked in](#terms-locked-in)
+9. [Deliberately not covered yet](#deliberately-not-covered-yet)
+10. [Sources](#sources)
+
+---
+
+## What an internet gateway is
+
+An **internet gateway (IGW)** is the door in a VPC's wall to the public internet. It is a VPC-level thing — one gateway serves the whole VPC — and it is what a public subnet's `0.0.0.0/0` route points at.
+
+It is created independently and starts **detached**, belonging to no VPC, and must be **attached** to a VPC to do anything. It is free.
+
+---
+
+## The route line and the gateway are two different things
+
+This is the point most easily confused. Writing `0.0.0.0/0` in a route table and having an internet gateway are two halves of one action:
+
+```
+0.0.0.0/0                  ← the RULE:  "internet-bound traffic, this way"
+   → target: learn-igw     ← the DOOR:  the actual exit it goes through
+```
+
+A route line is a **decision** — a destination plus a target. It is useless without a target; "send everything else to... nothing" is not a valid route, and AWS will not save it. The IGW is the **where** — the real device the traffic is handed to.
+
+From Foundations Lesson 07: a routing rule is "addresses like this → *that exit*," and the exit is a real thing. The IGW *is* that exit; the route line just names it. The line is the signpost; the gateway is the road it points down.
+
+---
+
+## Why the gateway must exist at all
+
+The deeper reason ties back to NAT (Foundations Lesson 09). Instances have **private** addresses (`10.0.1.x`) — meaningless on the internet, unroutable, with no way for replies to find their way back. Something must perform the public/private translation at the edge of the VPC.
+
+**That is the IGW's real job.** It is not merely "a door" — it is the edge device that lets internal private-addressed traffic reach the public internet *and* translates addresses so replies return. It is NAT-at-the-VPC-edge, provided as a managed service (the "Blackfoot" edge layer from the VPC internals note).
+
+So without an IGW, even a correctly written `0.0.0.0/0` route leads nowhere — there is no machinery to translate `10.0.1.x` into something the internet can talk to. The road would lead to a wall. Both the route line and the gateway are required, doing different jobs: the line says "go this way," the gateway makes internet travel actually possible.
+
+---
+
+## Hands-on: what we did in the console
+
+On `learn-vpc` (Sydney):
+
+**Created the gateway:** Internet gateways → Create internet gateway → name `learn-igw`. Result: `igw-02e333fe0c532664b`, state **Detached** — a door lying on the ground, fitted to no building.
+
+**Attached it:** Actions → Attach to VPC → `learn-vpc`. State became **Attached** — the VPC now had a door to the outside. But no traffic used it yet: a door existing does not mean anyone has been told to walk through it. Nothing pointed at it until the route line was added (Lesson 04).
+
+The complete public path, once the route table pointed at it:
+
+```
+learn-public-a (10.0.1.0/24)
+   → learn-public-rt : 0.0.0.0/0 → igw-02e333fe...
+      → learn-igw (attached to learn-vpc)
+         → the internet
+```
+
+---
+
+## Questions raised in this lesson
+
+### Why did we need the IGW attached to the route, when we already added the `0.0.0.0/0` public road?
+
+Because they are two different things doing two different jobs. The `0.0.0.0/0` line is the **rule** ("internet-bound traffic goes this way"); the IGW is the **device** the rule points at (the actual exit that makes internet travel possible). A rule with no target is not a valid route — "send everything else to nothing" cannot be saved. And even a valid-looking route needs the IGW because instances have private addresses that require translation at the edge before the internet can be reached at all (NAT, Lesson 09). The line decides direction; the gateway does the work.
+
+Precisely: "attaching the IGW" attaches it to the *VPC* (one door for the whole VPC). Connecting a *specific subnet* to that door is done by adding the `0.0.0.0/0 → igw` line to that subnet's route table. The door alone does nothing; the line alone has nowhere to point.
+
+### What would happen if I added the IGW route to the private route table?
+
+The private subnet would **become public.** There is nothing magic protecting it — the *only* thing making `learn-private-a` private is the *absence* of the `0.0.0.0/0 → igw` line. Add that line to its table and it now has a road to the door; it is public by definition. This is exactly why the internet route is kept off the main table (Lesson 04) — so no subnet gains it by accident.
+
+One nuance: adding the route makes the subnet *able* to route to the internet, but a machine in it still would not be reachable *from* the internet unless it also has a public IP assigned. The route is necessary but not alone sufficient. Still — "add IGW route to a private subnet" means the privacy is gone; the wall was only ever a missing line.
+
+And the mirror image: deleting `0.0.0.0/0 → igw` from `learn-public-rt` would make `learn-public-a` private again instantly. The IGW would still exist and still be attached to the VPC, but with nothing pointing at it, no subnet uses it. The door stays; the road is gone.
+
+---
+
+## Easy to get wrong
+
+**The IGW attaches to the VPC, not to a subnet or a route.** One IGW per VPC. Subnets connect to it indirectly, through a route-table line.
+
+**An attached IGW does nothing by itself.** Attachment provides the door; a route-table line (`0.0.0.0/0 → igw`) is what actually sends traffic through it. Many "why can't my instance reach the internet" problems are an attached IGW with no route pointing at it.
+
+**Privacy is a missing line, not a barrier.** A private subnet is private only because no route points at the IGW. This is fragile-sounding but correct — which is why the main table is kept internet-free.
+
+**Route + IGW + public IP are all needed for inbound reachability.** The route and gateway let traffic *leave*; being reachable *from* the internet also needs the instance to have a public address. Missing any of the three breaks it.
+
+**The IGW is doing NAT-like translation, not just forwarding.** Its real value is edge translation between private and public addresses — the reason a raw route without it goes nowhere.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| Internet gateway | Vague "internet access thing" | The VPC's edge door that also translates private↔public addresses |
+| IGW vs the route line | The same thing / redundant | Two halves: the line is the rule, the gateway is the device it points at |
+| Why a route alone is not enough | It should just work | Private addresses need edge translation; the IGW provides it |
+| Making a subnet private | Blocking it | Simply not pointing its route table at the IGW |
+| Attaching an IGW | Grants internet immediately | Only provides the door; a route line must still point at it |
+
+---
+
+## Terms locked in
+
+- **internet gateway (IGW)** — the VPC's edge door to the public internet; also performs private↔public address translation
+- **detached / attached** — an IGW's state; it must be attached to a VPC to function
+- **the rule vs the device** — a route line decides direction; the gateway is the exit that does the work
+- **public IP requirement** — needed *in addition to* the route + gateway for an instance to be reachable from the internet
+
+---
+
+## Deliberately not covered yet
+
+- **NAT gateway** — lets private subnets reach *out* without being reachable *in*; the natural contrast to the IGW; Lesson 06 (and the first thing in this track that costs money)
+- **Elastic IP** — a fixed public address you can assign; touched during the hands-on build when an instance needs stable inbound reachability
+- **Egress-only internet gateway** — the IPv6 equivalent of a NAT gateway; out of scope while staying IPv4
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| Internet gateways (official) | AWS — Connect to the internet using an internet gateway | https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html |
+| How the IGW performs NAT for public IPs | AWS — Internet gateway basics | https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html#what-is-igw |
+| Route tables that point at the IGW | AWS — Route tables | https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html |
+
+> **Source note:** AWS documents that the internet gateway performs network address translation for instances with public IPv4 addresses — confirming it is not a passive door but the edge translator described here.
+
+---
+
+*End of AWS Lesson 05. Next: NAT gateway — how a private subnet reaches out without being reachable in (and the first billable resource in this track).*

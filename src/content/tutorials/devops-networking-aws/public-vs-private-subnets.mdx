@@ -12,6 +12,7 @@ series:
 sourceId: net-aws-03
 sourcePath: networking-lab/02-aws/03-public-vs-private-subnets.md
 aiAssisted: true
+dateUpdated: 2026-09-08
 ---
 
 > **Track:** DevOps Networking — 1 Month Deep Dive
@@ -139,6 +140,36 @@ Via the **local route**, which every subnet has automatically. "Private" means "
 - **Private → private** (backend reaching database): `10.0.3.30` matches `10.0.0.0/16 → local`, delivered. Two private subnets talk freely.
 
 So "private" is precisely: **reachable inside the VPC, unreachable from the internet.** Not cut off — just not exposed.
+
+---
+
+## Hands-on: what we did in the console
+
+The full public/private split, built and proven on real subnets.
+
+**Starting point:** both `learn-public-a` and `learn-private-a` used the main route table (`local` only) — so both were private, despite the names.
+
+**Built the pieces to make one public:**
+
+1. **Internet gateway** — created `learn-igw`, which is born **detached** (belonging to no VPC), then attached it to `learn-vpc`. This is the "internet door" in the VPC wall.
+2. **A separate route table** — created `learn-public-rt` (`rtb-0f0d1e654fc79997f`), deliberately *not* editing the main table.
+3. **The internet road** — added a route to `learn-public-rt`: destination `0.0.0.0/0`, target `learn-igw` (`igw-02e333fe0c532664b`).
+4. **Association** — associated `learn-public-a` (only) with `learn-public-rt`.
+
+**The proof, read off the two subnets' route tables:**
+
+```
+learn-public-a  →  learn-public-rt:
+   10.0.0.0/16   local              (reach inside the VPC)
+   0.0.0.0/0     igw-02e333fe...    (everything else → out the door)   = PUBLIC
+
+learn-private-a →  main route table:
+   10.0.0.0/16   local              (that's all)                       = PRIVATE
+```
+
+**Same VPC, same AZ, born identical — now one public and one private, differing by exactly one route-table line.** The entire Lesson 03 thesis, verified on infrastructure built by hand: public vs private is not a property, it is a routing choice.
+
+**Why a *separate* table instead of adding the internet route to main:** the main table is the VPC default — every subnet without its own table falls back to it. Adding `0.0.0.0/0` to main would hand an internet road to **every** subnet at once, including the database subnet and any future subnet. Keeping the internet route on a separate table means internet access is something a subnet *opts into*, never a default it gets by accident — the same safe-default spirit as firewall default-deny (Foundations Lesson 13).
 
 ---
 
