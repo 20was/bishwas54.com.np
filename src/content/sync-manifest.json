@@ -1,8 +1,35 @@
 {
   "schemaVersion": 2,
   "sourceRepository": "20was/self-learn-docs",
-  "sourceCommit": "a3d0bc016e71da1dc86cc9f91c4d13d493c8b8c0",
+  "sourceCommit": "5e024fae140764e7bbb723308ac8b1801cf67224",
   "documents": {
+    "net-aws-01": {
+      "sourcePath": "networking-lab/02-aws/01-vpc.md",
+      "targetPath": "src/content/tutorials/devops-networking-aws/vpc.mdx",
+      "collection": "tutorials",
+      "slug": "vpc",
+      "route": "devops-networking-aws/vpc",
+      "bodyHash": "sha256:61a26d08f1df32f66148b00ea6172809dd70bbd2d39134328838a8c2d194646d",
+      "status": "published"
+    },
+    "net-aws-02": {
+      "sourcePath": "networking-lab/02-aws/02-subnets.md",
+      "targetPath": "src/content/tutorials/devops-networking-aws/subnets.mdx",
+      "collection": "tutorials",
+      "slug": "subnets",
+      "route": "devops-networking-aws/subnets",
+      "bodyHash": "sha256:d907ca6f2765ac1697a07d5b06c8571c6c6b5e1562ec5c0a04e52f7b1dc76644",
+      "status": "published"
+    },
+    "net-aws-03": {
+      "sourcePath": "networking-lab/02-aws/03-public-vs-private-subnets.md",
+      "targetPath": "src/content/tutorials/devops-networking-aws/public-vs-private-subnets.mdx",
+      "collection": "tutorials",
+      "slug": "public-vs-private-subnets",
+      "route": "devops-networking-aws/public-vs-private-subnets",
+      "bodyHash": "sha256:acd889fdd630750f532d6f89af0008acccb45a392a8d3c062a5a3425dca2e4e2",
+      "status": "published"
+    },
     "net-foundations-01": {
       "sourcePath": "networking-lab/01-foundations/01-what-networking-is-and-ip-addresses.md",
       "targetPath": "src/content/tutorials/devops-networking/networking-and-ip-addresses.mdx",

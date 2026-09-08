@@ -1,0 +1,220 @@
+---
+title: AWS Lesson 01 — What a VPC Is
+description: In Part 1 the project ran on one machine — React, Java, PostgreSQL, all on 10.0.1.10.
+datePublished: 2026-09-08
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking — AWS
+  order: 1
+sourceId: net-aws-01
+sourcePath: networking-lab/02-aws/01-vpc.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 2 — AWS Networking
+> **Status:** Understood and closed
+> **Concepts covered:** 1 — the VPC (what it is, what it is not, how it works behind the scenes)
+> **Builds on:** Foundations Lesson 01 (private ranges), 03 (encapsulation), 08 (CIDR), 09 (NAT / public-private split)
+
+---
+
+## Table of contents
+
+1. [The problem, before the term](#the-problem-before-the-term)
+2. [What a VPC is](#what-a-vpc-is)
+3. [A VPC has no hardware](#a-vpc-has-no-hardware)
+4. [How Amazon gives you addresses](#how-amazon-gives-you-addresses)
+5. [What happens behind the scenes](#what-happens-behind-the-scenes)
+6. [Questions raised in this lesson](#questions-raised-in-this-lesson)
+7. [Easy to get wrong](#easy-to-get-wrong)
+8. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+9. [Terms locked in](#terms-locked-in)
+10. [Deliberately not covered yet](#deliberately-not-covered-yet)
+11. [Sources](#sources)
+
+---
+
+## The problem, before the term
+
+In Part 1 the project ran on one machine — React, Java, PostgreSQL, all on `10.0.1.10`. Fine for learning, but nobody in the world can reach that machine (it is behind a home router, invisible — NAT, Foundations Lesson 09). To deploy for real, you need computers that live *on the internet*, in a data center, with real public addresses.
+
+Amazon rents such computers (so do Google and Microsoft). Renting computers in someone else's data center by the hour is what "the cloud" means.
+
+But those data centers are enormous — millions of computers, millions of customers, all in the same buildings, all wired together. So a question appears immediately:
+
+**How are your computers kept separate from everyone else's?**
+
+A single flat network would put your database on the same network as strangers' servers. Chaos, and a security nightmare. The answer is the whole lesson.
+
+---
+
+## What a VPC is
+
+> **A VPC is your own private, isolated network *inside* the cloud provider's data centers — walled off from every other customer, as if you had the place to yourself.**
+
+**VPC = Virtual Private Cloud.** (Not VPN — close letters, different thing.) Word by word:
+
+- **Cloud** — you are inside the rented-computer world.
+- **Private** — yours alone; other customers cannot see into it or reach into it.
+- **Virtual** — the same trick as VPN's "virtual": no physical wall is built around your computers. The provider's software *makes* your machines behave as if on their own isolated network, even though they physically share the same buildings and wires as everyone else's. The isolation is created in software, not concrete.
+
+A VPC is a private, software-made network that is yours, inside the shared cloud.
+
+---
+
+## A VPC has no hardware
+
+A common and correct source of confusion: a VPC is a *network*, not a *server* — so what hardware is it? Answer: **none.** And that is the correct understanding, not a gap.
+
+Two completely different kinds of thing exist in the cloud:
+
+**The computers — hardware.** In AWS these are **EC2 instances**: actual rented computers (CPU, memory, disk) that run React, Java, PostgreSQL. This is the physical thing (technically a slice of a big physical machine).
+
+**The VPC — not a computer.** It is the *network* the computers sit in — a set of rules and boundaries: "these addresses are mine, this is walled off, traffic flows like this." No CPU, no disk, nothing to log into. Pure configuration.
+
+The home analogy: a laptop and phone are hardware — real devices. "Your home network" — the `192.168.1.x` zone the router creates — is not a device you can hold; it is the *arrangement* the devices sit in. A VPC is that invisible structure; EC2 instances are the real things that plug into it.
+
+```
+VPC          =  the private network (no hardware — a boundary and an address range)
+  └── EC2 instances  =  the actual rented computers (the hardware)
+        └── React / Java / PostgreSQL run here
+```
+
+The plot-of-land picture: **a VPC is the empty walled plot; EC2 instances are the buildings you put on it.** The plot has no hardware — just a boundary and an address range. This is also why an empty VPC is free: an empty plot with no buildings consumes nothing. You pay only once EC2 instances exist.
+
+---
+
+## How Amazon gives you addresses
+
+The twist: **Amazon does not give you the (private) addresses. You pick them yourself.**
+
+When you create a VPC, the first thing AWS asks for is a **CIDR block** (Foundations Lesson 08). You type something like:
+
+```
+10.0.0.0/16
+```
+
+*You* choose it. You are claiming: "inside my private network, addresses run from `10.0.0.0` to `10.0.255.255` — about 65,000 addresses, mine to hand out."
+
+Why are you *allowed* to just pick it? Because `10.0.0.0/16` is inside the `10.x` private block from RFC 1918 (Foundations Lesson 01), which is free for anyone to use inside their own network, no permission needed — exactly as a home router just uses `192.168.1.x`. Millions of other AWS customers use `10.0.0.0/16` in their own VPCs right now, and it is fine, because each VPC is walled off; private addresses only need to be unique *inside* one network.
+
+So: for private addresses, nobody gives them to you — you claim them from the free private ranges.
+
+The exception is **public** addresses. A public address must come from the real, globally-unique pool (Foundations Lesson 01 — public addresses are scarce and controlled, not self-assignable). When you want an instance reachable from the internet, you ask AWS for a public IP, and Amazon assigns one from the block it owns. That is the only place "Amazon gives you an address" is literally true.
+
+---
+
+## What happens behind the scenes
+
+When you submit `10.0.0.0/16`, Amazon does **not** rack up hardware or run cables (a VPC has no hardware). It is pure bookkeeping:
+
+```
+1. Amazon records: "this customer owns a VPC with range 10.0.0.0/16"
+2. Its networking software notes this boundary in the enormous shared system
+   that tracks every customer's private network
+3. From then on, that software enforces: traffic tagged as yours stays inside
+   your VPC; nobody else's traffic can enter it
+```
+
+Creating a VPC is Amazon writing "this range belongs to this customer, keep it isolated" into the software governing their whole network. Instant and free because it is just a record — the empty plot, registered in a ledger.
+
+**The mechanism is encapsulation** (Foundations Lesson 03 — envelopes inside envelopes). Your instances think they are on their own private network: A at `10.0.1.10` sends to B at `10.0.2.20`. But those instances are software on shared physical machines. So when A's packet leaves, Amazon wraps it:
+
+```
+[ physical-host-to-physical-host envelope
+    [ "this belongs to VPC #12345" tag
+        [ your actual packet: 10.0.1.10 -> 10.0.2.20 ] ] ]
+```
+
+The outer envelope moves it across Amazon's real network. The middle tag keeps you separate — a packet tagged "VPC #12345" can only be delivered into VPC #12345. **That tag is the wall.** That is what "virtual" and "private" mean mechanically: isolation is a label on every packet, checked on delivery.
+
+The documented internal systems (from AWS conference talks): a **mapping service** (the source-of-truth lookup that records your VPC and CIDR and tells every host where things are — essentially a private, internal DNS-like directory), **Hyperplane** (NAT at industrial scale — powers the NAT Gateway and Network Load Balancer, later lessons), and **Blackfoot** (the edge devices connecting the AWS network to the outside — the gateway at the boundary). The deepest internals are proprietary and unpublished; these names are reconstructed from Amazon's own presentations.
+
+You never touch any of this. As a DevOps engineer you work one layer up — CIDR blocks, subnets, route tables. The encapsulation insight is the keeper; the three product names are trivia.
+
+---
+
+## Questions raised in this lesson
+
+### A VPC is a network, not a server — what hardware does it have?
+
+None, and that is correct. Hardware is the **EC2 instances** (rented computers) that run inside the VPC. The VPC itself is pure configuration — a boundary and an address range, like "your home network" versus the laptop and phone plugged into it. An empty VPC is free precisely because it has no hardware.
+
+### How does Amazon give you an address? What happens after you ask for a VPC?
+
+For private addresses: Amazon does not give them — you pick a CIDR block from the free RFC 1918 private ranges yourself. Behind the scenes, creating a VPC is a record written into the **mapping service** (no hardware allocated), after which a planet-scale encapsulation system tags and isolates your packets on every hop. Amazon only truly *gives* an address when you request a **public** one, drawn from its controlled global pool.
+
+### What software creates the VPC ranges?
+
+The **mapping service** records the VPC and its CIDR as an isolated entry in a distributed source-of-truth; **encapsulation** (VPC-tagged envelopes) enforces the isolation on every packet; **Hyperplane** and **Blackfoot** handle NAT and edge connectivity. The exact code and deepest layers are proprietary and unpublished — the honest ceiling is: named systems, known technique (encapsulation), undisclosed internals.
+
+An elegant consequence, explainable with Foundations Lesson 06: a VPC does not support broadcast, multicast, or packet sniffing — because there is no shared physical wire. Every packet is individually wrapped and delivered point-to-point through the mapping service, so there is no shared medium to broadcast across or eavesdrop on. The isolation is structural, not just a rule.
+
+---
+
+## Easy to get wrong
+
+**VPC is not VPN.** A VPC is a private network you own in the cloud; a VPN is a sealed tunnel for traffic. Different tools, one letter apart.
+
+**A VPC is not a machine.** It has no hardware, nothing to log into. It is a boundary plus an address range. The machines are EC2 instances placed inside it.
+
+**You choose the private range; Amazon does not.** You pick a CIDR block from RFC 1918 space. Only public addresses come from Amazon's pool.
+
+**An empty VPC costs nothing.** Billing starts with the resources placed inside it (instances, gateways), not the network boundary itself.
+
+**Overlapping ranges bite later.** Two customers both using `10.0.0.0/16` is fine because VPCs are isolated — but if *you* ever need to connect two of your own networks that share a range, the overlap becomes a real problem. Choosing ranges thoughtfully now avoids pain later.
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| The cloud | Magic servers somewhere | Rented computers in shared data centers, by the hour |
+| A VPC | A server or a product you run | A private, software-defined network boundary — no hardware |
+| Isolation between customers | Physical separation | A VPC tag on every packet, enforced by encapsulation |
+| Getting an address | Amazon assigns everything | You claim private ranges yourself; Amazon only gives public ones |
+| Creating a VPC | Provisioning hardware | Writing a record into the mapping service; instant and free |
+| Why no broadcast/sniffing in a VPC | An arbitrary limitation | No shared wire exists; packets are wrapped and delivered point-to-point |
+
+---
+
+## Terms locked in
+
+- **VPC (Virtual Private Cloud)** — your own isolated, software-defined network inside a cloud provider
+- **EC2 instance** — a rented computer (the actual hardware) placed inside a VPC
+- **VPC CIDR block** — the private address range you claim for the VPC (e.g. `10.0.0.0/16`)
+- **encapsulation (in a VPC)** — wrapping each packet in a VPC-tagged outer envelope to enforce isolation
+- **mapping service** — AWS's internal source-of-truth directory recording VPCs, ranges, and instance locations
+- **public IP (in AWS)** — a globally-unique address Amazon assigns from its own pool for internet reachability
+
+---
+
+## Deliberately not covered yet
+
+- **Subnets** — dividing the VPC range into pieces; next lesson
+- **Route tables and gateways** — how traffic actually leaves or stays inside; Lessons 04–06
+- **The exact proprietary internals** — unpublished; the encapsulation model is enough
+- **IPv6 in VPCs** — supported, deferred; the private/public reasoning here is IPv4
+- **VPC peering / Transit Gateway** — connecting multiple VPCs; where overlapping ranges matter, introduced when needed
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| What a VPC is (official) | AWS — What is Amazon VPC? | https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html |
+| VPC CIDR blocks and sizing | AWS — VPC CIDR blocks | https://docs.aws.amazon.com/vpc/latest/userguide/vpc-cidr-blocks.html |
+| The private ranges you claim from | RFC 1918 | https://www.rfc-editor.org/rfc/rfc1918.html |
+| How VPC isolation works under the hood | AWS re:Invent — "A Day in the Life of a Billion Packets" | https://www.youtube.com/watch?v=St3K456PGZY |
+
+> **Source note:** the "mapping service / Hyperplane / Blackfoot" architecture comes from AWS's own re:Invent conference presentations, not from published source code. The encapsulation model is well documented; the deepest internals remain proprietary.
+
+---
+
+*End of AWS Lesson 01. Next: subnets — dividing the VPC range into pieces, and why physical building placement matters.*
