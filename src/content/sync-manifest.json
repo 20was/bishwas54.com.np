@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "sourceRepository": "20was/self-learn-docs",
-  "sourceCommit": "cd7a4ad6787bae076658a38cd1786264a9b93fa3",
+  "sourceCommit": "2896a81e966afd3d1d66b9480344e31fe4aa669d",
   "documents": {
     "net-aws-01": {
       "sourcePath": "networking-lab/02-aws/01-vpc.md",
@@ -202,6 +202,15 @@
       "slug": "vpn",
       "route": "devops-networking/vpn",
       "bodyHash": "sha256:27a874c27154273ecd05ab155bd4a21bc8c1c2b02d66865a017f2a52d7b533b3",
+      "status": "published"
+    },
+    "net-foundations-16": {
+      "sourcePath": "networking-lab/01-foundations/16-dnssec.md",
+      "targetPath": "src/content/tutorials/devops-networking/dnssec.mdx",
+      "collection": "tutorials",
+      "slug": "dnssec",
+      "route": "devops-networking/dnssec",
+      "bodyHash": "sha256:5bed53ebf272485ffc3c774d2972e067acc89acd119bf59419e5d69960e459ed",
       "status": "published"
     }
   }
