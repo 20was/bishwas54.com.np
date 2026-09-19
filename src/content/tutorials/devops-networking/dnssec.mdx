@@ -1,0 +1,261 @@
+---
+title: Lesson 16 — DNSSEC (and the post-quantum wrinkle)
+description: 'Lesson 04 taught the whole DNS chain: you type github.com, your runner walks root → .com → the owner''s computer, and comes back with "github.com is 140.82.121.4." One question was never asked:'
+datePublished: 2026-09-18
+tags:
+  - networking
+  - basics
+  - devops
+series:
+  name: DevOps Networking
+  order: 16
+sourceId: net-foundations-16
+sourcePath: networking-lab/01-foundations/16-dnssec.md
+aiAssisted: true
+---
+
+> **Track:** DevOps Networking — 1 Month Deep Dive
+> **Part:** 1 — Networking Foundations (extra note, added after a Cloudflare blog post)
+> **Status:** Understood and closed
+> **Concepts covered:** 4 — the DNS forgery problem, DNSSEC as the fix (signing along the chain), post-quantum signatures, and the size/TCP consequence
+> **Builds on:** Lesson 04 (DNS, the runner-fetches model, the chain), Lesson 10 (UDP vs TCP, envelope size), Lesson 11 (man-in-the-middle), Lesson 12 (signatures, the chain of trust)
+
+---
+
+## Table of contents
+
+1. [The hole nobody pointed out in the DNS lesson](#the-hole-nobody-pointed-out-in-the-dns-lesson)
+2. [Why the runner can be fooled](#why-the-runner-can-be-fooled)
+3. [The name is never the target — the answer is](#the-name-is-never-the-target--the-answer-is)
+4. [Doesn't HTTPS already cover this?](#doesnt-https-already-cover-this)
+5. [DNSSEC — the fix](#dnssec--the-fix)
+6. [The post-quantum wrinkle](#the-post-quantum-wrinkle)
+7. [The 2,420-byte problem — pure Lesson 10](#the-2420-byte-problem--pure-lesson-10)
+8. [The downgrade attack](#the-downgrade-attack)
+9. [Reading the real dig output](#reading-the-real-dig-output)
+10. [Easy to get wrong](#easy-to-get-wrong)
+11. [Old way vs improved understanding](#old-way-vs-improved-understanding)
+12. [Terms locked in](#terms-locked-in)
+13. [Deliberately not covered yet](#deliberately-not-covered-yet)
+14. [Sources](#sources)
+
+---
+
+## The hole nobody pointed out in the DNS lesson
+
+Lesson 04 taught the whole DNS chain: you type `github.com`, your runner walks root → `.com` → the owner's computer, and comes back with "github.com is 140.82.121.4." One question was never asked:
+
+**When the runner gets that answer — how does it know the answer is genuine?**
+
+The answer arrived as a small message across the network. Plain text. No lock, no signature, nothing proving who sent it. And from Lesson 11, anything on the path can inject or alter traffic. So an attacker on the same network can forge a reply — "github.com is 6.6.6.6" (their evil server) — and the runner has no way to tell it from the real one.
+
+> **Plain DNS answers carry no proof of who sent them. Anyone on the path can forge one and send you to the wrong place.**
+
+This is real and serious: forge a DNS answer and every security measure downstream is aimed at the wrong building.
+
+---
+
+## Why the runner can be fooled
+
+A tempting wrong intuition: "the runner has access to all the IPs, so how can it be wrong?" But from Lesson 04, **the runner holds nothing.** It is a *fetcher*, not a library. When asked "what is github.com?", it does not look up an answer it owns — it goes and asks around the network and relays back whatever comes.
+
+So the runner does not "have" the address — it **receives** it, live, as a message, at the moment of asking. That is exactly the vulnerability. Picture the runner as a messenger you send to ask a question: the messenger does not know the answer, and on the way back, if a stranger hands them a forged note, they carry it back in good faith. The runner can be wrong *because* it knows nothing itself — it trusts what the network hands it.
+
+Same flaw as the port lesson, one level up: from Lesson 02, a machine hands data to whoever holds the port *without checking identity*. Here, a runner accepts an answer *without checking who really sent it*.
+
+---
+
+## The name is never the target — the answer is
+
+The confusing part: "how can an attacker send a perfectly-spelled `github.com` to their own server?"
+
+The unlock is realising the name and the address are **not welded together.** The link between "github.com" and "140.82.121.4" is not a permanent fact — it exists only as *an answer to a question, sent as a message, at the moment you ask.* Every lookup, someone must ask "what address does this name have?" and receive a reply.
+
+The attacker never touches the name. The name stays 100% correct. The attacker forges the **answer**:
+
+```
+Your runner asks the network:
+   "What is the address for github.com?"        ← the QUESTION (name is perfect)
+
+The REAL answer, en route from GitHub:
+   "github.com is 140.82.121.4"                 ← honest reply, traveling
+
+The ATTACKER shouts faster:
+   "github.com is 6.6.6.6"                       ← forged reply, also says github.com
+```
+
+The attacker's fake message *also says github.com* — it just puts the wrong number after it, and races to arrive first. The runner asked a question and got a well-formed answer; it takes the first valid-looking one. The name was the question; the address was somebody's shouted reply; plain DNS never checks whether the replier is who they claim to be.
+
+Like shouting "what's GitHub's address?" across a crowded room and believing whoever shouts back first — without checking the voice belongs to GitHub.
+
+---
+
+## Doesn't HTTPS already cover this?
+
+A sharp objection: the browser already verifies identity via the TLS certificate (Lesson 12) — isn't that enough? No, and the reason is **timing and scope.**
+
+**Timing.** The DNS lookup happens *first*, before any certificate check:
+
+```
+1. DNS first:    browser asks "what is github.com?" → gets an IP   ← attacker forges HERE
+2. THEN connect: browser goes to that IP and does the TLS check
+```
+
+**Scope.** The certificate check only guards one specific step — a browser reaching an HTTPS website. Two cases:
+
+- If the attacker's server has no valid github.com certificate, the browser shows the red "not private" warning — the TLS check *did* catch it (though users click through warnings, and the attacker still blocked the real site).
+- But DNS is not only used by browsers doing HTTPS. DNS answers point to email servers, software-update servers, internal services, phone apps — most of which do no browser-style certificate check. Forge *those* answers and nothing stands guard.
+
+> **HTTPS/TLS proves you reached the right *website*. DNSSEC proves you got the right *address in the first place*.** They guard different steps — DNSSEC guards the earlier, more fundamental one that everything else builds on.
+
+---
+
+## DNSSEC — the fix
+
+The fix is the TLS trick from Lesson 12, moved one step earlier. If the problem is "I can't tell who really sent this answer," the solution is **a signature only the real sender can produce.**
+
+**DNSSEC = DNS + SECurity: every DNS record is signed.** The owner signs their answers with a private key; the runner verifies with the public key. A forged answer has no valid signature, so it is rejected:
+
+```
+real answer:       "github.com is 140.82.121.4"  + valid signature from GitHub  ✓
+attacker's answer: "github.com is 6.6.6.6"        + no valid signature           ✗
+```
+
+The attacker can shout a fake, but cannot sign it as GitHub (no private key — the exact TLS impostor problem from Lesson 12). The runner checks the signature, finds the attacker's missing or invalid, and throws it out.
+
+And it follows the **same chain from Lesson 04**: root signs a statement about `.com`, `.com` signs a statement about the owner, the owner signs the actual answer. A validating runner follows signed records from the root down to the domain, checking authenticity at each link. It is the DNS delegation chain with a signature stapled to every link — a chain of trust from the root downward, exactly like TLS's certificate-authority chain, but built on DNS's existing hierarchy.
+
+---
+
+## The post-quantum wrinkle
+
+Why was Cloudflare changing DNSSEC at all? Because a future threat targets the signatures themselves.
+
+From Lesson 12, signatures and key exchange rest on **one-way math** — easy one direction, effectively impossible to reverse, *for today's computers*. A powerful enough **quantum computer** could do the "impossible" reverse: recover private keys from public ones and forge signatures. Today's signature algorithms (RSA, ECDSA) would break.
+
+**Post-quantum** algorithms are new cryptography designed to stay unbreakable even against quantum computers. The specific one here is **ML-DSA-44**, standardised by the US body NIST. So the whole Cloudflare post reduces to: *1.1.1.1 can now verify DNS signatures made with a quantum-resistant algorithm.*
+
+Why act now, when such quantum computers do not yet exist? Because DNSSEC provides **authenticity, not secrecy** — so it is not vulnerable to "harvest now, decrypt later." The urgency is instead coordination: changing DNSSEC requires every authoritative server, registry, registrar, and validating resolver (all terms from the Lesson 04 ownership addendum) to move together, up to the root — and that takes years. Worse, a compromised root key means "break once, forge everywhere," so the migration must reach the very top.
+
+---
+
+## The 2,420-byte problem — pure Lesson 10
+
+Here the post collides with something already known. From Lesson 04, DNS rides **UDP** (Lesson 10's "just throw one small envelope"), because questions and answers are tiny.
+
+But signatures have a *size*. Today's are small — fine in one UDP envelope. The quantum-proof **ML-DSA-44 signature is 2,420 bytes**, and from Lesson 10 a single envelope holds ~1,500 bytes (DNS-over-UDP is often capped even lower, around 1,232 bytes). **The signature no longer fits in the envelope.**
+
+The fix is also already known: fall back to **TCP** (Lesson 10, the "careful courier" that splits a big thing across many envelopes and reassembles in order). When the answer is too big for UDP, the server replies "too big, ask again over TCP," and the runner re-asks over TCP. The cost is TCP's extra round-trips (the handshake), so quantum-proof DNS is heavier and slower than today's — the price of bigger signatures.
+
+Comparison from the post:
+
+```
+Algorithm       Public key    Signature
+RSA-2048        260 bytes     256 bytes
+ECDSA P-256      64 bytes      64 bytes
+ML-DSA-44      1,312 bytes   2,420 bytes   ← ~38x larger than ECDSA
+```
+
+---
+
+## The downgrade attack
+
+The one genuinely new idea. The transition lasts years, so during it a zone must publish **both** signature kinds — the old small one (for old runners that do not understand quantum-proof yet) and the new quantum-proof one, side by side, for compatibility.
+
+That creates an opening. Once quantum computers make the *old* signature forgeable, an attacker forges an old-style signature and strips out the new one, betting the runner will accept "a valid old signature, good enough" — even though it *could* have done the quantum-proof check. The attacker **downgrades** the runner to the weak option (same spirit as forcing a weaker handshake).
+
+The fix: the runner is told, in an authenticated way, that a zone *should* have a quantum-proof signature — so if only the old one appears, the runner **refuses** rather than accepting the downgrade. It will not be talked down to the weak signature. That is the "preventing fallback" the post keeps mentioning.
+
+---
+
+## Reading the real dig output
+
+The post's own `dig` command shows several of these lessons at once:
+
+```
+$ dig @1.1.1.1 valid.mldsa44.dnstest.dev +dnssec
+
+;; WARNING: truncated reply from 1.1.1.1@53(UDP), retrying over TCP
+...
+valid.mldsa44.dnstest.dev.  0  IN  RRSIG  A 18 4 0 ... (a 2,420-byte signature) ...
+;; Received 2563 B
+;; From 1.1.1.1@53(TCP) in 20.7 ms
+```
+
+Read with Part 1 eyes:
+- **`WARNING: truncated reply from ... (UDP), retrying over TCP`** — Lesson 10, live: the answer did not fit in a UDP envelope, so the runner fell back to TCP. Exactly the fallback described above.
+- **`RRSIG ... A 18 ...`** — the signature record. The `18` is ML-DSA-44's assigned DNSSEC algorithm number (IANA, the same body from Lesson 01).
+- **`Received 2563 B`** — the whole answer is ~2.5 KB, dwarfing a normal DNS reply, because the giant signature is inside it.
+- **`From 1.1.1.1@53(TCP)`** — confirms the final answer came over TCP, on port 53 (Lesson 02's DNS port).
+
+The `dig` tool itself is from Lesson 14 — this is that tool showing DNSSEC and the UDP→TCP fallback on a real query.
+
+---
+
+## Easy to get wrong
+
+**The attacker forges the answer, not the name.** DNS forgery never misspells the domain. The name in the question stays perfect; the *reply* is the lie. This is the single most important idea in the note.
+
+**DNSSEC is authenticity, not secrecy.** It proves an answer is genuine; it does not hide the question or answer from onlookers. (Hiding the question is a different thing — DNS-over-HTTPS/TLS — not covered here.)
+
+**HTTPS does not make DNSSEC redundant.** They guard different steps: DNSSEC the address lookup, TLS the website connection. Most DNS-dependent traffic (email, updates, apps) has no TLS check behind it.
+
+**"Post-quantum" is about signatures breaking, not being read.** The threat is future forgery of signatures, which is why the migration is urgent *despite* no "harvest now, decrypt later" risk.
+
+**Bigger signatures force TCP.** The quantum-proof signature exceeds the UDP envelope, so quantum-proof DNS leans on TCP far more — slower, but reliable. A performance cost, not a bug.
+
+**The weak link is the highest unprotected level.** A chain of trust is only as strong as its top; an attacker targets the highest level still using a breakable signature and forges everything below it ("break once, forge everywhere").
+
+---
+
+## Old way vs improved understanding
+
+| Topic | Old way of thinking | Improved understanding |
+|---|---|---|
+| A DNS answer | A trustworthy fact | An unauthenticated message anyone on the path can forge |
+| Name → address | A permanent, welded link | A live question-and-answer; the attacker poisons the answer |
+| Why the runner can be fooled | It should "know" the right IP | It holds nothing; it fetches and trusts whatever arrives |
+| DNSSEC | A mysterious DNS acronym | Signatures on DNS answers, verified along the root→owner chain |
+| HTTPS vs DNSSEC | HTTPS already covers it | Different steps: HTTPS the site, DNSSEC the address lookup underneath |
+| Post-quantum | Sci-fi paranoia | Preparing signatures for computers that could reverse today's one-way math |
+| Big signatures | No consequence | Too big for UDP → forces TCP fallback (Lesson 10, live) |
+
+---
+
+## Terms locked in
+
+- **DNSSEC** — DNS security: signing DNS records so forged answers are rejected, verified along the delegation chain
+- **DNS forgery / cache poisoning** — feeding a runner a fake answer to send victims to the wrong address
+- **validating resolver** — a runner that checks DNSSEC signatures (e.g. 1.1.1.1)
+- **chain of trust (DNSSEC)** — signatures from the root down to the domain, each level vouching for the next
+- **authenticity vs confidentiality** — DNSSEC proves *genuine*, it does not *hide*; the two are different goals
+- **post-quantum cryptography** — algorithms designed to resist quantum computers
+- **ML-DSA-44** — a NIST-standardised post-quantum signature; DNSSEC algorithm number 18; 2,420-byte signature
+- **downgrade attack** — tricking a runner into accepting a weaker (breakable) signature during a dual-signature transition
+
+---
+
+## Deliberately not covered yet
+
+- **The specific DNSSEC record types** (DNSKEY, RRSIG, DS, NSEC) — named here only in passing; the mechanism matters more than the record menagerie at this stage
+- **DNS-over-HTTPS / DNS-over-TLS** — hiding the DNS *question* from onlookers (confidentiality), a separate concern from DNSSEC's authenticity
+- **The exact post-quantum math** — the one-way-math intuition from Lesson 12 is enough; the lattice cryptography behind ML-DSA is beyond this track
+- **Setting up DNSSEC on your own domain** — a hands-on task for when the project gets a real domain
+
+---
+
+## Sources
+
+| Topic | Source | Link |
+|---|---|---|
+| The Cloudflare post that prompted this note | Cloudflare Blog — 1.1.1.1 now supports post-quantum DNSSEC | https://blog.cloudflare.com/post-quantum-dnssec-1111/ |
+| How DNSSEC works (readable) | Cloudflare Learning — How DNSSEC works | https://www.cloudflare.com/learning/dns/dnssec/how-dnssec-works/ |
+| DNSSEC, the base specifications | RFC 4033, 4034, 4035 | https://www.rfc-editor.org/rfc/rfc4033.html |
+| NIST's post-quantum standards (ML-DSA) | NIST — First post-quantum encryption standards (FIPS 204) | https://www.nist.gov/news-events/news/2024/08/nist-releases-first-3-finalized-post-quantum-encryption-standards |
+| DNSSEC algorithm numbers (ML-DSA-44 = 18) | IANA — DNSSEC algorithm numbers | https://www.iana.org/assignments/dns-sec-alg-numbers |
+
+> **Source note:** DNSSEC itself is stable and two decades old (RFC 4033–4035, 2005). The *post-quantum* part is new and experimental as of 2026 — the Cloudflare post is a research/deployment announcement, so specifics (algorithm numbers, size limits, downgrade handling) may evolve. The core teaching — signing DNS answers along the chain — is settled and permanent.
+
+---
+
+*End of Lesson 16. This closes the Part 1 foundations, now including DNS security. The AWS hands-on track (Part 2) continues from the NAT gateway.*
