@@ -36,7 +36,7 @@
     "astro-pagefind": "^2.0.1",
     "eslint": "^10.8.1",
     "eslint-plugin-astro": "^3.1.0",
-    "markdown-it": "^15.0.0",
+    "markdown-it": "^15.0.1",
     "pagefind": "^1.5.2",
     "prettier": "^3.9.6",
     "prettier-plugin-astro": "^0.14.1",
