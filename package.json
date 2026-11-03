@@ -40,7 +40,7 @@
     "pagefind": "^1.5.2",
     "prettier": "^3.9.6",
     "prettier-plugin-astro": "^0.14.1",
-    "satori": "^0.29.0",
+    "satori": "^0.33.5",
     "typescript": "~5.9",
     "typescript-eslint": "^8.66.0",
     "vitest": "^4.1.10",
